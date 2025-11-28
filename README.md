@@ -1,4 +1,4 @@
-# Reddit Wallpaper Extension
+# Extension for New Tab Images
 
 A Chrome extension that replaces your new tab page with images from Reddit.
 
