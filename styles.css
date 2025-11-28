@@ -1,0 +1,216 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  background-color: #1a1a1a;
+}
+
+#background-container {
+  position: fixed;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-color: #1a1a1a;
+  transition: opacity 0.2s ease-in-out;
+  will-change: opacity;
+  z-index: -1;
+}
+
+#background-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.5));
+  pointer-events: none;
+}
+
+#overlay {
+  position: relative;
+  z-index: 10;
+  color: #fff;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.8);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 40px;
+}
+
+#time-container {
+  text-align: center;
+  margin-top: 20vh;
+}
+
+#time {
+  font-size: clamp(3rem, 10vw, 6rem);
+  font-weight: 300;
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+#date {
+  font-size: clamp(1rem, 3vw, 1.5rem);
+  font-weight: 300;
+  opacity: 0.9;
+}
+
+#image-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+  padding: 20px 30px;
+  border-radius: 15px;
+}
+
+.info-left {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+
+#subreddit-label {
+  font-size: 1.1rem;
+  opacity: 0.8;
+  font-weight: 500;
+}
+
+#subreddit-input {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid transparent;
+  color: #fff;
+  font-size: 1.1rem;
+  padding: 8px 12px;
+  border-radius: 8px;
+  width: 150px;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+#subreddit-input:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+#subreddit-input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+#subreddit-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+#post-title {
+  flex: 1;
+  font-size: clamp(0.9rem, 2vw, 1.1rem);
+  opacity: 0.95;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#post-title a {
+  color: #fff;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+#post-title a:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+#loading {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  color: #fff;
+  animation: fadeIn 0.2s ease-out;
+}
+
+#loading.hidden {
+  display: none;
+}
+
+.loader {
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-top: 4px solid #fff;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+#loading p {
+  font-size: 1.2rem;
+  opacity: 0.8;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 768px) {
+  #overlay {
+    padding: 20px;
+  }
+
+  #time-container {
+    margin-top: 10vh;
+  }
+
+  #image-info {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 15px 20px;
+    gap: 15px;
+  }
+
+  .info-left, #subreddit-input {
+    width: 100%;
+  }
+
+  #post-title {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-contrast: high) {
+  #subreddit-input {
+    border-width: 2px;
+  }
+}

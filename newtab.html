@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Reddit Wallpaper New Tab Extension">
+    <title>New Tab</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="background-container" role="img" aria-label="Background wallpaper"></div>
+    
+    <div id="overlay">
+        <div id="time-container" role="timer" aria-live="off">
+            <time id="time" aria-label="Current time"></time>
+            <div id="date" aria-label="Current date"></div>
+        </div>
+        
+        <div id="image-info">
+            <div class="info-left">
+                <span id="subreddit-label">r/</span>
+                <input 
+                    type="text" 
+                    id="subreddit-input" 
+                    placeholder="CineShots"
+                    aria-label="Subreddit name"
+                    autocomplete="off"
+                    spellcheck="false">
+            </div>
+            <div id="post-title" role="status" aria-live="polite">Loading...</div>
+        </div>
+    </div>
+
+    <div id="loading" class="hidden" role="status" aria-live="polite">
+        <div class="loader" aria-hidden="true"></div>
+        <p>Loading beautiful image...</p>
+    </div>
+
+    <script src="newtab.js"></script>
+</body>
+</html>
