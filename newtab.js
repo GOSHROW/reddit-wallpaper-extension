@@ -210,7 +210,7 @@ const UI = {
     this.elements.loading?.classList.add('hidden');
   },
 
-  setBackgroundImage(imageUrl, title, permalink) {
+  setBackgroundImage(imageUrl, title, permalink, onError) {
     const { backgroundContainer, postTitle } = this.elements;
     const img = new Image();
     
@@ -226,8 +226,12 @@ const UI = {
 
     img.onerror = () => {
       console.error('Failed to load image:', imageUrl);
-      postTitle.textContent = 'Image failed to load. Click refresh to try again.';
-      backgroundContainer.style.opacity = '1';
+      if (onError) {
+        onError();
+      } else {
+        postTitle.textContent = 'Image failed to load. Click refresh to try again.';
+        backgroundContainer.style.opacity = '1';
+      }
     };
 
     img.src = imageUrl;
@@ -258,15 +262,26 @@ const UI = {
 
 const App = {
   currentSubreddit: CONFIG.DEFAULT_SUBREDDIT,
+  maxRetries: 3,
 
-  async loadImage(showLoading = false) {
+  async loadImage(showLoading = false, retryCount = 0) {
     if (showLoading) UI.showLoading();
 
     try {
       this.currentSubreddit = UI.getSubreddit();
       const image = await ImageCache.getNext(this.currentSubreddit);
       if (!image) throw new Error('No image available');
-      UI.setBackgroundImage(image.imageUrl, image.title, image.permalink);
+      
+      UI.setBackgroundImage(image.imageUrl, image.title, image.permalink, async () => {
+        console.log(`Image load failed (attempt ${retryCount + 1}/${this.maxRetries}), trying next image...`);
+        
+        if (retryCount < this.maxRetries) {
+          await this.loadImage(false, retryCount + 1);
+        } else {
+          console.error('Max retries reached, giving up');
+          UI.showError('Failed to load images. Try another subreddit or refresh the page.');
+        }
+      });
     } catch (error) {
         console.error('Failed to load image:', error);
       UI.showError(`Failed: ${error.message}. Try another subreddit.`);
