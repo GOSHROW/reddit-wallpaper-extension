@@ -120,6 +120,13 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: color 0.3s ease;
+}
+
+#post-title.error {
+  color: #ff6b6b;
+  font-weight: 500;
+  opacity: 1;
 }
 
 #post-title a {

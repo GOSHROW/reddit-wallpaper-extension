@@ -108,9 +108,19 @@ const RedditAPI = {
     const response = await fetch(url, {
       headers: { 'User-Agent': CONFIG.USER_AGENT }
     });
+    
     if (!response.ok) {
-      throw new Error(`Reddit API error: ${response.status}`);
+      if (response.status === 404) {
+        throw new Error(`r/${subreddit} doesn't exist. Check the spelling and try again`);
+      } else if (response.status === 403 || response.status === 451) {
+        throw new Error(`r/${subreddit} is private or restricted. Try a different subreddit`);
+      } else if (response.status >= 500) {
+        throw new Error(`Reddit is having issues right now. Please try again later`);
+      } else {
+        throw new Error(`Can't connect to Reddit. Check your internet connection`);
+      }
     }
+    
     const data = await response.json();
     return data?.data?.children || [];
   },
@@ -148,13 +158,20 @@ const RedditAPI = {
 const ImageCache = {
   async fetch(subreddit) {
     const posts = await RedditAPI.fetchPosts(subreddit);
-    if (posts.length === 0) throw new Error(`No posts found in r/${subreddit}`);
+    
+    if (posts.length === 0) {
+      throw new Error(`r/${subreddit} has no posts yet. Try "CineShots" or "EarthPorn"`);
+    }
     
     const imagePosts = RedditAPI.filterImagePosts(posts);
-    if (imagePosts.length === 0) throw new Error(`No images found in r/${subreddit}`);
+    if (imagePosts.length === 0) {
+      throw new Error(`r/${subreddit} has no image posts. Try "wallpapers" or "spaceporn"`);
+    }
     
     const images = RedditAPI.extractImages(imagePosts);
-    if (images.length === 0) throw new Error(`Could not extract images from r/${subreddit}`);
+    if (images.length === 0) {
+      throw new Error(`Can't load images from r/${subreddit}. Try "CityPorn" or "ArchitecturePorn"`);
+    }
     
     const shuffled = RedditAPI.shuffleArray(images);
     await Storage.setLocal({ 
@@ -162,7 +179,7 @@ const ImageCache = {
       cacheSubreddit: subreddit,
       cacheTimestamp: Date.now() 
     });
-    console.log(`Cached ${shuffled.length} images from r/${subreddit}`);
+    console.log(`✓ Cached ${shuffled.length} images from r/${subreddit}`);
     return shuffled;
   },
 
@@ -221,6 +238,7 @@ const UI = {
       } else {
         postTitle.textContent = title;
       }
+      this.clearError();
       backgroundContainer.style.opacity = '1';
     };
 
@@ -229,7 +247,7 @@ const UI = {
       if (onError) {
         onError();
       } else {
-        postTitle.textContent = 'Image failed to load. Click refresh to try again.';
+        this.showError('This image is unavailable. Refresh the page for a new one.');
         backgroundContainer.style.opacity = '1';
       }
     };
@@ -249,6 +267,11 @@ const UI = {
 
   showError(message) {
     this.elements.postTitle.textContent = message;
+    this.elements.postTitle.classList.add('error');
+  },
+
+  clearError() {
+    this.elements.postTitle.classList.remove('error');
   },
 
   setSubreddit(subreddit) {
@@ -270,7 +293,10 @@ const App = {
     try {
       this.currentSubreddit = UI.getSubreddit();
       const image = await ImageCache.getNext(this.currentSubreddit);
-      if (!image) throw new Error('No image available');
+      
+      if (!image) {
+        throw new Error('No images in cache. Try refreshing the page');
+      }
       
       UI.setBackgroundImage(image.imageUrl, image.title, image.permalink, async () => {
         console.log(`Image load failed (attempt ${retryCount + 1}/${this.maxRetries}), trying next image...`);
@@ -279,12 +305,12 @@ const App = {
           await this.loadImage(false, retryCount + 1);
         } else {
           console.error('Max retries reached, giving up');
-          UI.showError('Failed to load images. Try another subreddit or refresh the page.');
+          UI.showError('Multiple images failed to load. Try a different subreddit like "CineShots"');
         }
       });
     } catch (error) {
-        console.error('Failed to load image:', error);
-      UI.showError(`Failed: ${error.message}. Try another subreddit.`);
+      console.error('Failed to load image:', error);
+      UI.showError(error.message);
     } finally {
       if (showLoading) UI.hideLoading();
     }
