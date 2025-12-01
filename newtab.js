@@ -316,10 +316,15 @@ const ImageCache = {
 
 const UI = {
   elements: {},
+  currentLayer: 1,
 
   init() {
     this.elements = {
       backgroundContainer: document.getElementById('background-container'),
+      backgroundLayer1: document.getElementById('background-layer-1'),
+      backgroundLayer2: document.getElementById('background-layer-2'),
+      loadingIndicator: document.getElementById('loading-indicator'),
+      refreshButton: document.getElementById('refresh-button'),
       postTitle: document.getElementById('post-title'),
       time: document.getElementById('time'),
       date: document.getElementById('date'),
@@ -337,27 +342,58 @@ const UI = {
   },
 
   setBackgroundImage(imageUrl, title, permalink, onError) {
-    const { backgroundContainer, postTitle } = this.elements;
+    const { backgroundLayer1, backgroundLayer2, loadingIndicator, postTitle } = this.elements;
     const img = new Image();
+    const startTime = performance.now();
+    let loadingTimeout;
+    
+    // Show loading indicator after 100ms if image hasn't loaded
+    loadingTimeout = setTimeout(() => {
+      loadingIndicator.classList.remove('hidden');
+    }, 100);
     
     img.onload = () => {
-      backgroundContainer.style.backgroundImage = `url('${imageUrl}')`;
+      clearTimeout(loadingTimeout);
+      loadingIndicator.classList.add('hidden');
+      
+      // Determine which layer to use (alternate between them)
+      const newLayer = this.currentLayer === 1 ? backgroundLayer2 : backgroundLayer1;
+      const oldLayer = this.currentLayer === 1 ? backgroundLayer1 : backgroundLayer2;
+      
+      // Set new image on inactive layer
+      newLayer.style.backgroundImage = `url('${imageUrl}')`;
+      
+      // Crossfade: fade in new layer, fade out old layer
+      newLayer.style.opacity = '1';
+      oldLayer.style.opacity = '0';
+      
+      // Clear old layer's image after transition completes
+      setTimeout(() => {
+        oldLayer.style.backgroundImage = 'none';
+      }, 600);
+      
+      // Update title
       if (permalink) {
         postTitle.innerHTML = `<a href="${permalink}" target="_blank" rel="noopener noreferrer">${title}</a>`;
       } else {
         postTitle.textContent = title;
       }
+      
       this.clearError();
-      backgroundContainer.style.opacity = '1';
+      
+      // Switch current layer reference
+      this.currentLayer = this.currentLayer === 1 ? 2 : 1;
     };
 
     img.onerror = () => {
+      clearTimeout(loadingTimeout);
+      loadingIndicator.classList.add('hidden');
       console.error('Failed to load image:', imageUrl);
+      
       if (onError) {
         onError();
       } else {
         this.showError('This image is unavailable. Refresh the page for a new one.');
-        backgroundContainer.style.opacity = '1';
       }
     };
 
@@ -446,6 +482,10 @@ const App = {
 
     UI.elements.subredditInput.addEventListener('blur', () => {
       this.handleSubredditChange();
+    });
+
+    UI.elements.refreshButton.addEventListener('click', () => {
+      this.loadImage(false);
     });
   },
 

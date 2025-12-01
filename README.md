@@ -38,6 +38,9 @@ Shows a different image each time you open a new tab.
 **View the Reddit post:**
 - Click on the image title at the bottom to open the original Reddit post in a new tab
 
+**Refresh for a new image:**
+- Click the refresh button (↻) in the bottom bar to instantly load a new random image
+
 **Good subreddits to try:**
 - CineShots (movie screenshots)
 - EarthPorn (nature photos)
@@ -168,6 +171,43 @@ All extracted images include CDN priority scoring for optimal loading performanc
 - Automatic retry with different images (up to 3 attempts)
 - Graceful degradation on repeated failures
 
+### User Interface
+
+#### Design System
+- **Modern Glassmorphism**: Semi-transparent backgrounds with backdrop blur for depth
+- **Smooth Transitions**: 600ms crossfade between images with smart fade logic
+- **Responsive Layout**: Fluid typography and adaptive layouts for all screen sizes
+- **Visual Hierarchy**: Clear focal point (centered clock) with subtle bottom info bar
+
+#### Accessibility Features
+- **WCAG 2.1 AA Compliant**: Meets web accessibility standards
+- **Semantic HTML**: Proper ARIA labels and roles for screen readers
+- **Keyboard Navigation**: Full keyboard support with visible focus indicators
+- **Motion Preferences**: Respects `prefers-reduced-motion` for users sensitive to animations
+- **Contrast Preferences**: Enhanced borders for `prefers-contrast: high`
+- **Touch Targets**: Minimum 36×36px interactive elements (exceeds 44px iOS recommendation)
+
+#### Interactive Elements
+- **Refresh Button**: Manual image refresh with animated icon rotation on hover
+- **Loading Indicator**: Subtle spinner appears during image loads (same position as refresh button)
+- **Subreddit Input**: Inline editable field with hover/focus states
+- **Post Title Link**: Clickable title to view original Reddit post
+- **Error Messages**: Color-coded red text with user-friendly descriptions
+
+#### Responsive Behavior
+- **Desktop**: Horizontal info bar with all elements in one row
+- **Mobile (≤768px)**: Stacked vertical layout with refresh button positioned top-right
+- **Fluid Typography**: Uses `clamp()` for smooth scaling across viewport sizes
+- **Adaptive Spacing**: Padding and gaps adjust based on screen size
+
+#### Visual States
+- **Loading**: Spinner animation with smooth fade-in
+- **Loaded**: Smooth crossfade transition between images
+- **Error**: Red-colored error text in post title area
+- **Hover**: Subtle scale and opacity changes on interactive elements
+- **Focus**: Visible outline on keyboard focus (keyboard users only)
+- **Active**: Scale-down effect on button press for tactile feedback
+
 ### Key Features
 
 - **Image Format Support**: Direct links, Reddit-hosted (i.redd.it), galleries, previews
@@ -176,11 +216,13 @@ All extracted images include CDN priority scoring for optimal loading performanc
 - **CDN Prioritization**: Sorts images by source reliability for better success rates
 - **Selective Preloading**: Preloads only slower images to save bandwidth
 - **Retry Logic**: Automatically skips broken/failed images (up to 3 attempts)
-- **Responsive UI**: Adaptive layout for mobile and desktop
-- **Accessibility**: ARIA labels, semantic HTML, keyboard navigation support
-- **Performance**: Background preloading, CSS transitions with will-change
+- **Manual Refresh**: One-click button to load a new random image without refreshing the tab
+- **Responsive UI**: Adaptive layout for mobile and desktop with fluid typography
+- **Accessibility**: WCAG 2.1 AA compliant with ARIA labels, keyboard navigation, and motion preferences
+- **Performance**: Background preloading, CSS transitions with will-change, crossfade animations
 - **Error Styling**: Red-colored error messages for immediate visibility
 - **Context-Aware Errors**: Specific error messages based on failure type (404, 403, network, etc.)
+- **Modern Design**: Glassmorphism with backdrop blur, smooth transitions, and visual depth
 
 ### Storage
 

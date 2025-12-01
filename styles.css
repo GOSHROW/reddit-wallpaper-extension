@@ -15,12 +15,26 @@ body {
 #background-container {
   position: fixed;
   inset: 0;
+  z-index: -1;
+}
+
+.background-layer {
+  position: absolute;
+  inset: 0;
   background-size: cover;
   background-position: center;
   background-color: #1a1a1a;
-  transition: opacity 0.2s ease-in-out;
+  transition: opacity 0.6s ease-in-out;
   will-change: opacity;
-  z-index: -1;
+}
+
+#background-layer-1 {
+  z-index: 1;
+}
+
+#background-layer-2 {
+  z-index: 2;
+  opacity: 0;
 }
 
 #background-container::before {
@@ -71,6 +85,7 @@ body {
   backdrop-filter: blur(10px);
   padding: 20px 30px;
   border-radius: 15px;
+  position: relative;
 }
 
 .info-left {
@@ -172,6 +187,80 @@ body {
   opacity: 0.8;
 }
 
+#refresh-button {
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+#refresh-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+#refresh-button:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
+
+#refresh-button:focus:not(:focus-visible) {
+  outline: none;
+}
+
+#refresh-button:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.8);
+  outline-offset: 2px;
+}
+
+#refresh-button:active {
+  transform: scale(0.95);
+}
+
+#refresh-button svg {
+  transition: transform 0.3s ease;
+}
+
+#refresh-button:hover svg {
+  transform: rotate(180deg);
+}
+
+#loading-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+#loading-indicator.hidden {
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid rgba(255, 255, 255, 0.3);
+  border-top-color: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -199,6 +288,18 @@ body {
 
   .info-left, #subreddit-input {
     width: 100%;
+  }
+
+  #refresh-button {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+  }
+
+  #loading-indicator {
+    position: absolute;
+    top: 15px;
+    right: 15px;
   }
 
   #post-title {
