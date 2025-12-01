@@ -333,6 +333,9 @@ const ImageCache = {
 const UI = {
   elements: {},
   currentLayer: 1,
+  clockPosition: null,
+  isDragging: false,
+  is24HourFormat: true,
 
   init() {
     this.elements = {
@@ -345,8 +348,122 @@ const UI = {
       time: document.getElementById('time'),
       date: document.getElementById('date'),
       loading: document.getElementById('loading'),
-      subredditInput: document.getElementById('subreddit-input')
+      subredditInput: document.getElementById('subreddit-input'),
+      timeContainer: document.getElementById('time-container')
     };
+    this.initClockDrag();
+    this.loadClockPosition();
+    this.loadTimeFormat();
+    this.initTimeFormatToggle();
+  },
+
+  initClockDrag() {
+    const container = this.elements.timeContainer;
+    let startX, startY, initialX, initialY;
+
+    const onMouseDown = (e) => {
+      if (e.target.tagName === 'TIME' || e.target.id === 'date' || e.target === container) {
+        this.isDragging = true;
+        container.classList.add('dragging');
+        
+        const rect = container.getBoundingClientRect();
+        startX = e.clientX;
+        startY = e.clientY;
+        initialX = rect.left;
+        initialY = rect.top;
+        
+        e.preventDefault();
+      }
+    };
+
+    const onMouseMove = (e) => {
+      if (!this.isDragging) return;
+      
+      const deltaX = e.clientX - startX;
+      const deltaY = e.clientY - startY;
+      
+      const newX = initialX + deltaX;
+      const newY = initialY + deltaY;
+      
+      container.style.left = `${newX}px`;
+      container.style.top = `${newY}px`;
+      container.style.transform = 'none';
+    };
+
+    const onMouseUp = () => {
+      if (this.isDragging) {
+        this.isDragging = false;
+        container.classList.remove('dragging');
+        this.saveClockPosition();
+      }
+    };
+
+    const onDoubleClick = () => {
+      this.resetClockPosition();
+    };
+
+    container.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    container.addEventListener('dblclick', onDoubleClick);
+  },
+
+  async saveClockPosition() {
+    const container = this.elements.timeContainer;
+    const rect = container.getBoundingClientRect();
+    
+    this.clockPosition = {
+      left: rect.left,
+      top: rect.top
+    };
+    
+    await Storage.set({ clockPosition: this.clockPosition });
+  },
+
+  async loadClockPosition() {
+    const { clockPosition } = await Storage.get(['clockPosition']);
+    
+    if (clockPosition) {
+      this.clockPosition = clockPosition;
+      const container = this.elements.timeContainer;
+      container.style.left = `${clockPosition.left}px`;
+      container.style.top = `${clockPosition.top}px`;
+      container.style.transform = 'none';
+    }
+  },
+
+  async resetClockPosition() {
+    const container = this.elements.timeContainer;
+    container.style.left = '50%';
+    container.style.top = '20vh';
+    container.style.transform = 'translateX(-50%)';
+    
+    this.clockPosition = null;
+    await Storage.set({ clockPosition: null });
+  },
+
+  initTimeFormatToggle() {
+    this.elements.time.addEventListener('click', (e) => {
+      // Only toggle if not dragging
+      if (!this.isDragging) {
+        e.stopPropagation();
+        this.toggleTimeFormat();
+      }
+    });
+    
+    // Add pointer cursor to indicate clickability
+    this.elements.time.style.cursor = 'pointer';
+  },
+
+  async toggleTimeFormat() {
+    this.is24HourFormat = !this.is24HourFormat;
+    await Storage.set({ is24HourFormat: this.is24HourFormat });
+    this.updateClock();
+  },
+
+  async loadTimeFormat() {
+    const { is24HourFormat } = await Storage.get(['is24HourFormat'], { is24HourFormat: true });
+    this.is24HourFormat = is24HourFormat;
   },
 
   showLoading() {
@@ -418,9 +535,19 @@ const UI = {
 
   updateClock() {
     const now = new Date();
-    const hours = now.getHours().toString().padStart(2, '0');
+    let hours = now.getHours();
     const minutes = now.getMinutes().toString().padStart(2, '0');
-    this.elements.time.textContent = `${hours}:${minutes}`;
+    
+    let timeString;
+    if (this.is24HourFormat) {
+      timeString = `${hours.toString().padStart(2, '0')}:${minutes}`;
+    } else {
+      const period = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12; // Convert to 12-hour format
+      timeString = `${hours}:${minutes} ${period}`;
+    }
+    
+    this.elements.time.textContent = timeString;
     
     const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     this.elements.date.textContent = now.toLocaleDateString('en-US', dateOptions);

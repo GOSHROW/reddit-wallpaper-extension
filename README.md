@@ -4,7 +4,8 @@ A browser extension that replaces your new tab page with images from Reddit.
 
 Works on Chrome, Firefox, Edge, Brave, Opera, and other Chromium-based browsers.
 
-![Screenshot](resources/screenshot.png)
+![Screenshot from v1.1.2](resources/screenshot.png)
+*Screenshot shows version 1.1.2 of the extension*
 
 ## Installation
 
@@ -40,6 +41,12 @@ Shows a different image each time you open a new tab.
 
 **Refresh for a new image:**
 - Click the refresh button (↻) in the bottom bar to instantly load a new random image
+
+**Customize the clock:**
+- Drag the clock anywhere on the screen to reposition it
+- Double-click the clock to reset it to the default center position
+- Click on the time to toggle between 12-hour (6:45 PM) and 24-hour (18:45) format
+- All preferences are saved and persist across sessions
 
 **Good subreddits to try:**
 - CineShots (movie screenshots)
@@ -131,6 +138,7 @@ All extracted images include CDN priority scoring for optimal loading performanc
 - **Error Handling**: Automatic retry mechanism with up to 3 attempts for failed image loads
 - **State Management**: Uses Browser Storage API (sync for settings, local for cache)
 - **User-Friendly Messages**: Context-aware error messages with actionable suggestions
+- **Customizable Clock**: Draggable positioning with persistent storage and format toggle (12/24 hour)
 
 ### Technologies
 
@@ -196,6 +204,9 @@ All extracted images include CDN priority scoring for optimal loading performanc
 - **Subreddit Input**: Inline editable field with hover/focus states
 - **Post Title Link**: Clickable title to view original Reddit post
 - **Error Messages**: Color-coded red text with user-friendly descriptions
+- **Draggable Clock**: Click and drag to reposition anywhere on screen, persists across sessions
+- **Clock Reset**: Double-click clock to return to default center position
+- **Time Format Toggle**: Click time to switch between 12-hour and 24-hour formats
 
 #### Responsive Behavior
 - **Desktop**: Horizontal info bar with all elements in one row
@@ -221,6 +232,9 @@ All extracted images include CDN priority scoring for optimal loading performanc
 - **Selective Preloading**: Preloads only slower images to save bandwidth
 - **Retry Logic**: Automatically skips broken/failed images (up to 3 attempts)
 - **Manual Refresh**: One-click button to load a new random image without refreshing the tab
+- **Draggable Clock**: Reposition clock anywhere with drag, double-click to reset
+- **Time Format Toggle**: Click time to switch between 12-hour (6:45 PM) and 24-hour (18:45) format
+- **Persistent Preferences**: Clock position and time format saved across sessions
 - **Responsive UI**: Adaptive layout for mobile and desktop with fluid typography
 - **Accessibility**: WCAG 2.1 AA compliant with ARIA labels, keyboard navigation, and motion preferences
 - **Performance**: Background preloading, CSS transitions with will-change, crossfade animations
@@ -230,7 +244,7 @@ All extracted images include CDN priority scoring for optimal loading performanc
 
 ### Storage
 
-- **Sync Storage**: User preferences (subreddit name)
+- **Sync Storage**: User preferences (subreddit name, clock position, time format)
 - **Local Storage**: Image cache with metadata
   - Image URLs, titles, and permalinks
   - CDN priority scores for each image
