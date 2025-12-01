@@ -2,21 +2,34 @@ const CONFIG = {
   DEFAULT_SUBREDDIT: 'CineShots',
   DEFAULT_POST_LIMIT: 50,
   CACHE_MIN_THRESHOLD: 5,
+  PRELOAD_COUNT: 5,
+  PRELOAD_PRIORITY_THRESHOLD: 85,
   IMAGE_INDICATORS: ['.jpg', '.jpeg', '.png', '.gif', 'i.redd.it', 'i.imgur.com'],
   REDDIT_API_BASE: 'https://www.reddit.com',
-  USER_AGENT: 'Mozilla/5.0 (compatible; ChromeExtension/1.0)'
+  USER_AGENT: 'Mozilla/5.0 (compatible; ChromeExtension/1.0)',
+  CDN_PRIORITY: {
+    'i.redd.it': 100,
+    'i.imgur.com': 90,
+    'imgur.com': 85,
+    'preview.redd.it': 80,
+    'external-preview.redd.it': 75,
+    'default': 50
+  }
 };
 
 const Storage = {
   async get(keys, defaults = {}) {
     return new Promise(resolve => chrome.storage.sync.get(defaults, resolve));
   },
+
   async set(items) {
     return new Promise(resolve => chrome.storage.sync.set(items, resolve));
   },
+
   async getLocal(keys) {
     return new Promise(resolve => chrome.storage.local.get(keys, resolve));
   },
+
   async setLocal(items) {
     return new Promise(resolve => chrome.storage.local.set(items, resolve));
   }
@@ -24,10 +37,9 @@ const Storage = {
 
 const Settings = {
   async load() {
-    return Storage.get(['subreddit'], {
-      subreddit: CONFIG.DEFAULT_SUBREDDIT
-    });
+    return Storage.get(['subreddit'], { subreddit: CONFIG.DEFAULT_SUBREDDIT });
   },
+
   async save(subreddit) {
     return Storage.set({ subreddit });
   }
@@ -49,56 +61,61 @@ const ImageExtractor = {
     return null;
   },
 
+  getCDNPriority(url) {
+    const urlLower = url.toLowerCase();
+    for (const [cdn, priority] of Object.entries(CONFIG.CDN_PRIORITY)) {
+      if (cdn !== 'default' && urlLower.includes(cdn)) {
+        return priority;
+      }
+    }
+    return CONFIG.CDN_PRIORITY.default;
+  },
+
+  createImageData(imageUrl, title, permalink) {
+    return {
+      imageUrl,
+      title,
+      permalink: permalink ? `https://reddit.com${permalink}` : null,
+      cdnPriority: this.getCDNPriority(imageUrl)
+    };
+  },
+
   extractDirectImage(postData) {
     const url = postData.url?.toLowerCase() || '';
     const hasImageIndicator = CONFIG.IMAGE_INDICATORS.some(indicator => url.includes(indicator));
     if (!hasImageIndicator) return null;
     
-    const permalink = postData.permalink ? `https://reddit.com${postData.permalink}` : null;
-    return { 
-      imageUrl: postData.url, 
-      title: postData.title,
-      permalink: permalink
-    };
+    return this.createImageData(postData.url, postData.title, postData.permalink);
   },
 
   extractRedditHosted(postData) {
     const isRedditImage = postData.domain === 'i.redd.it' || postData.post_hint === 'image';
     if (!isRedditImage) return null;
     
-    const permalink = postData.permalink ? `https://reddit.com${postData.permalink}` : null;
-    return { 
-      imageUrl: postData.url, 
-      title: postData.title,
-      permalink: permalink
-    };
+    return this.createImageData(postData.url, postData.title, postData.permalink);
   },
 
   extractGallery(postData) {
-    if (!postData.is_gallery || !postData.gallery_data || !postData.media_metadata) return null;
+    if (!postData.is_gallery || !postData.gallery_data || !postData.media_metadata) {
+      return null;
+    }
+
     const firstItem = postData.gallery_data.items?.[0];
     if (!firstItem) return null;
+
     const mediaItem = postData.media_metadata[firstItem.media_id];
     if (!mediaItem || mediaItem.e !== 'Image') return null;
     
-    const permalink = postData.permalink ? `https://reddit.com${postData.permalink}` : null;
-    return { 
-      imageUrl: mediaItem.s.u.replace(/&amp;/g, '&'), 
-      title: postData.title,
-      permalink: permalink
-    };
+    const imageUrl = mediaItem.s.u.replace(/&amp;/g, '&');
+    return this.createImageData(imageUrl, postData.title, postData.permalink);
   },
 
   extractPreview(postData) {
     const previewImage = postData.preview?.images?.[0]?.source;
     if (!previewImage) return null;
     
-    const permalink = postData.permalink ? `https://reddit.com${postData.permalink}` : null;
-    return { 
-      imageUrl: previewImage.url.replace(/&amp;/g, '&'), 
-      title: postData.title,
-      permalink: permalink
-    };
+    const imageUrl = previewImage.url.replace(/&amp;/g, '&');
+    return this.createImageData(imageUrl, postData.title, postData.permalink);
   }
 };
 
@@ -110,29 +127,39 @@ const RedditAPI = {
     });
     
     if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error(`r/${subreddit} doesn't exist. Check the spelling and try again`);
-      } else if (response.status === 403 || response.status === 451) {
-        throw new Error(`r/${subreddit} is private or restricted. Try a different subreddit`);
-      } else if (response.status >= 500) {
-        throw new Error(`Reddit is having issues right now. Please try again later`);
-      } else {
-        throw new Error(`Can't connect to Reddit. Check your internet connection`);
-      }
+      throw new Error(this.getErrorMessage(response.status, subreddit));
     }
     
     const data = await response.json();
     return data?.data?.children || [];
   },
 
+  getErrorMessage(status, subreddit) {
+    if (status === 404) {
+      return `r/${subreddit} doesn't exist. Check the spelling and try again`;
+    }
+    if (status === 403 || status === 451) {
+      return `r/${subreddit} is private or restricted. Try a different subreddit`;
+    }
+    if (status >= 500) {
+      return `Reddit is having issues right now. Please try again later`;
+    }
+    return `Can't connect to Reddit. Check your internet connection`;
+  },
+
   filterImagePosts(posts) {
     return posts.filter(post => {
       const data = post.data;
       if (data.is_self) return false;
+
       const url = data.url?.toLowerCase() || '';
       const hasImageIndicator = CONFIG.IMAGE_INDICATORS.some(indicator => url.includes(indicator));
-      return hasImageIndicator || data.domain === 'i.redd.it' || data.post_hint === 'image' || 
-             data.is_gallery || data.preview?.images;
+      
+      return hasImageIndicator || 
+             data.domain === 'i.redd.it' || 
+             data.post_hint === 'image' || 
+             data.is_gallery || 
+             data.preview?.images;
     });
   },
 
@@ -143,6 +170,14 @@ const RedditAPI = {
       if (imageData) images.push(imageData);
     }
     return images;
+  },
+
+  sortByReliability(images) {
+    return images.sort((a, b) => {
+      const priorityDiff = (b.cdnPriority || 50) - (a.cdnPriority || 50);
+      if (priorityDiff !== 0) return priorityDiff;
+      return Math.random() - 0.5;
+    });
   },
 
   shuffleArray(array) {
@@ -156,37 +191,95 @@ const RedditAPI = {
 };
 
 const ImageCache = {
+  currentPreloadBatch: 0,
+
   async fetch(subreddit) {
     const posts = await RedditAPI.fetchPosts(subreddit);
-    
-    if (posts.length === 0) {
-      throw new Error(`r/${subreddit} has no posts yet. Try "CineShots" or "EarthPorn"`);
-    }
+    this.validatePosts(posts, subreddit);
     
     const imagePosts = RedditAPI.filterImagePosts(posts);
-    if (imagePosts.length === 0) {
-      throw new Error(`r/${subreddit} has no image posts. Try "wallpapers" or "spaceporn"`);
-    }
+    this.validateImagePosts(imagePosts, subreddit);
     
     const images = RedditAPI.extractImages(imagePosts);
-    if (images.length === 0) {
-      throw new Error(`Can't load images from r/${subreddit}. Try "CityPorn" or "ArchitecturePorn"`);
-    }
+    this.validateImages(images, subreddit);
     
-    const shuffled = RedditAPI.shuffleArray(images);
+    const sorted = RedditAPI.sortByReliability(images);
+    
     await Storage.setLocal({ 
-      imageCache: shuffled, 
+      imageCache: sorted, 
       cacheSubreddit: subreddit,
       cacheTimestamp: Date.now() 
     });
-    console.log(`✓ Cached ${shuffled.length} images from r/${subreddit}`);
-    return shuffled;
+    
+    console.log(`✓ Cached ${sorted.length} images from r/${subreddit}`);
+    this.preloadImages(sorted.slice(0, CONFIG.PRELOAD_COUNT));
+    
+    return sorted;
+  },
+
+  validatePosts(posts, subreddit) {
+    if (posts.length === 0) {
+      throw new Error(`r/${subreddit} has no posts yet. Try "CineShots" or "EarthPorn"`);
+    }
+  },
+
+  validateImagePosts(imagePosts, subreddit) {
+    if (imagePosts.length === 0) {
+      throw new Error(`r/${subreddit} has no image posts. Try "wallpapers" or "spaceporn"`);
+    }
+  },
+
+  validateImages(images, subreddit) {
+    if (images.length === 0) {
+      throw new Error(`Can't load images from r/${subreddit}. Try "CityPorn" or "ArchitecturePorn"`);
+    }
+  },
+
+  preloadImages(images) {
+    const batchId = ++this.currentPreloadBatch;
+    
+    const imagesToPreload = images.filter(img => 
+      (img.cdnPriority || 50) < CONFIG.PRELOAD_PRIORITY_THRESHOLD
+    );
+    
+    const preloadList = imagesToPreload.length > 0 
+      ? imagesToPreload.slice(0, CONFIG.PRELOAD_COUNT)
+      : images.slice(0, CONFIG.PRELOAD_COUNT);
+    
+    if (preloadList.length === 0) return;
+    
+    console.log(`Starting preload batch #${batchId} (${preloadList.length} images)`);
+    
+    preloadList.forEach((imageData, index) => {
+      const img = new Image();
+      
+      img.onload = () => {
+        if (batchId === this.currentPreloadBatch) {
+          const urlPreview = imageData.imageUrl.substring(0, 50);
+          console.log(`✓ Preloaded ${index + 1}/${preloadList.length} [${urlPreview}...] (priority: ${imageData.cdnPriority || 50})`);
+        }
+      };
+      
+      img.onerror = () => {
+        if (batchId === this.currentPreloadBatch) {
+          console.warn(`✗ Failed to preload ${index + 1}/${preloadList.length}:`, imageData.imageUrl);
+        }
+      };
+      
+      img.src = imageData.imageUrl;
+    });
   },
 
   async getNext(currentSubreddit) {
-    const { imageCache = [], cacheSubreddit } = await Storage.getLocal(['imageCache', 'cacheSubreddit']);
+    const { imageCache = [], cacheSubreddit } = await Storage.getLocal([
+      'imageCache', 
+      'cacheSubreddit'
+    ]);
     
-    if (cacheSubreddit !== currentSubreddit || imageCache.length < CONFIG.CACHE_MIN_THRESHOLD) {
+    const needsRefetch = cacheSubreddit !== currentSubreddit || 
+                         imageCache.length < CONFIG.CACHE_MIN_THRESHOLD;
+    
+    if (needsRefetch) {
       console.log('Cache running low or subreddit changed, fetching new images...');
       return this.fetch(currentSubreddit).then(cache => {
         const image = cache.shift();
@@ -197,11 +290,23 @@ const ImageCache = {
 
     const image = imageCache.shift();
     await Storage.setLocal({ imageCache });
+    
+    if (imageCache.length <= CONFIG.PRELOAD_COUNT && imageCache.length > 0) {
+      const count = Math.min(CONFIG.PRELOAD_COUNT, imageCache.length);
+      console.log(`Preloading next ${count} images...`);
+      this.preloadImages(imageCache.slice(0, count));
+    }
+    
     return image;
   },
 
   async clear() {
-    await Storage.setLocal({ imageCache: [], cacheSubreddit: null, cacheTimestamp: null });
+    this.currentPreloadBatch++;
+    await Storage.setLocal({ 
+      imageCache: [], 
+      cacheSubreddit: null, 
+      cacheTimestamp: null 
+    });
   }
 };
 
@@ -298,16 +403,18 @@ const App = {
         throw new Error('No images in cache. Try refreshing the page');
       }
       
-      UI.setBackgroundImage(image.imageUrl, image.title, image.permalink, async () => {
-        console.log(`Image load failed (attempt ${retryCount + 1}/${this.maxRetries}), trying next image...`);
+      const onError = async () => {
+        console.log(`Image load failed (attempt ${retryCount + 1}/${this.maxRetries})`);
         
         if (retryCount < this.maxRetries) {
           await this.loadImage(false, retryCount + 1);
         } else {
-          console.error('Max retries reached, giving up');
+          console.error('Max retries reached');
           UI.showError('Multiple images failed to load. Try a different subreddit like "CineShots"');
         }
-      });
+      };
+      
+      UI.setBackgroundImage(image.imageUrl, image.title, image.permalink, onError);
     } catch (error) {
       console.error('Failed to load image:', error);
       UI.showError(error.message);
@@ -318,6 +425,7 @@ const App = {
 
   async handleSubredditChange() {
     const newSubreddit = UI.getSubreddit();
+    
     if (newSubreddit !== this.currentSubreddit) {
       await Settings.save(newSubreddit);
       await ImageCache.clear();
@@ -353,6 +461,6 @@ const App = {
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => App.init());
-        } else {
+} else {
   App.init();
 }
