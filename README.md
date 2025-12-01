@@ -1,15 +1,30 @@
 # Reddit Wallpaper New Tab
 
-A Chrome extension that replaces your new tab page with images from Reddit.
+A browser extension that replaces your new tab page with images from Reddit.
+
+Works on Chrome, Firefox, Edge, Brave, Opera, and other Chromium-based browsers.
 
 ![Screenshot](screenshot.png)
 
 ## Installation
 
-1. Open `chrome://extensions/` in Chrome
+### Chrome / Edge / Brave / Chromium-based browsers
+
+1. Open `chrome://extensions/` in Chrome (or `edge://extensions/` in Edge)
 2. Turn on "Developer mode" (top-right toggle)
 3. Click "Load unpacked" and select this folder
 4. Open a new tab
+
+### Firefox
+
+1. Download or clone this repository
+2. Rename `manifest_firefox.json` to `manifest.json` (backup the original first)
+3. Open `about:debugging#/runtime/this-firefox` in Firefox
+4. Click "Load Temporary Add-on"
+5. Select the `manifest.json` file from this folder
+6. Open a new tab
+
+**Note**: Firefox loads extensions temporarily in development mode. For permanent installation, the extension needs to be signed through Mozilla Add-ons.
 
 ## Usage
 
@@ -103,19 +118,21 @@ All extracted images include CDN priority scoring for optimal loading performanc
 ### Architecture
 
 - **Modular Design**: Code organized into logical modules (Storage, Settings, ImageExtractor, RedditAPI, ImageCache, UI, App)
+- **Cross-Browser Support**: Compatible with Chrome, Firefox, Edge, Brave, Opera
 - **Caching Strategy**: Batch fetching (50 images) with automatic refill when cache drops below 5 images
 - **CDN Prioritization**: Images sorted by source reliability (i.redd.it → imgur → external)
 - **Smart Preloading**: Selective background preloading of slower images only
 - **Error Handling**: Automatic retry mechanism with up to 3 attempts for failed image loads
-- **State Management**: Uses Chrome Storage API (sync for settings, local for cache)
+- **State Management**: Uses Browser Storage API (sync for settings, local for cache)
 - **User-Friendly Messages**: Context-aware error messages with actionable suggestions
 
 ### Technologies
 
 - Vanilla JavaScript (no frameworks or dependencies)
-- Chrome Extension Manifest V3
+- Cross-browser compatible (Chrome, Firefox, Edge, Brave, Opera)
+- Chrome Extension Manifest V3 (Chromium), Manifest V2 (Firefox)
 - Reddit's public JSON API (no authentication required)
-- Chrome Storage API for persistent data
+- Browser Storage API with cross-browser compatibility layer
 - Fisher-Yates shuffle algorithm for randomization
 
 ### Data Flow
@@ -195,9 +212,10 @@ All extracted images include CDN priority scoring for optimal loading performanc
 
 ## Files
 
-- `manifest.json` - Extension configuration and permissions
+- `manifest.json` - Extension configuration for Chrome/Chromium browsers
+- `manifest_firefox.json` - Extension configuration for Firefox
 - `newtab.html` - New tab page structure
-- `newtab.js` - Main application logic (modular architecture)
+- `newtab.js` - Main application logic (cross-browser compatible)
 - `styles.css` - Responsive styles with accessibility features
 - `icon*.png` - Extension icons (16x16, 48x48, 128x128)
 - `README.md` - Documentation

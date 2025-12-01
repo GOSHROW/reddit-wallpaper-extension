@@ -1,3 +1,6 @@
+// Cross-browser compatibility
+const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
+
 const CONFIG = {
   DEFAULT_SUBREDDIT: 'CineShots',
   DEFAULT_POST_LIMIT: 50,
@@ -19,19 +22,20 @@ const CONFIG = {
 
 const Storage = {
   async get(keys, defaults = {}) {
-    return new Promise(resolve => chrome.storage.sync.get(defaults, resolve));
+    const result = await browserAPI.storage.sync.get(keys);
+    return { ...defaults, ...result };
   },
 
   async set(items) {
-    return new Promise(resolve => chrome.storage.sync.set(items, resolve));
+    return browserAPI.storage.sync.set(items);
   },
 
   async getLocal(keys) {
-    return new Promise(resolve => chrome.storage.local.get(keys, resolve));
+    return browserAPI.storage.local.get(keys);
   },
 
   async setLocal(items) {
-    return new Promise(resolve => chrome.storage.local.set(items, resolve));
+    return browserAPI.storage.local.set(items);
   }
 };
 
