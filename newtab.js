@@ -360,10 +360,12 @@ const UI = {
   initClockDrag() {
     const container = this.elements.timeContainer;
     let startX, startY, initialX, initialY;
+    let hasMoved = false;
 
     const onMouseDown = (e) => {
       if (e.target.tagName === 'TIME' || e.target.id === 'date' || e.target === container) {
         this.isDragging = true;
+        hasMoved = false;
         container.classList.add('dragging');
         
         const rect = container.getBoundingClientRect();
@@ -382,6 +384,11 @@ const UI = {
       const deltaX = e.clientX - startX;
       const deltaY = e.clientY - startY;
       
+      // Mark as moved if dragged more than 5 pixels
+      if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+        hasMoved = true;
+      }
+      
       const newX = initialX + deltaX;
       const newY = initialY + deltaY;
       
@@ -394,7 +401,17 @@ const UI = {
       if (this.isDragging) {
         this.isDragging = false;
         container.classList.remove('dragging');
-        this.saveClockPosition();
+        
+        if (hasMoved) {
+          this.saveClockPosition();
+        }
+        
+        // Prevent click event from firing if we moved
+        if (hasMoved) {
+          setTimeout(() => {
+            hasMoved = false;
+          }, 100);
+        }
       }
     };
 
@@ -406,6 +423,9 @@ const UI = {
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
     container.addEventListener('dblclick', onDoubleClick);
+    
+    // Store hasMoved state for time format toggle check
+    this._hasMoved = () => hasMoved;
   },
 
   async saveClockPosition() {
@@ -444,8 +464,8 @@ const UI = {
 
   initTimeFormatToggle() {
     this.elements.time.addEventListener('click', (e) => {
-      // Only toggle if not dragging
-      if (!this.isDragging) {
+      // Only toggle if not dragging and haven't moved
+      if (!this.isDragging && !this._hasMoved()) {
         e.stopPropagation();
         this.toggleTimeFormat();
       }
