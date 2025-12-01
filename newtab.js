@@ -60,7 +60,10 @@ const ImageExtractor = {
 
     for (const extractor of extractors) {
       const result = extractor.call(this, postData);
-      if (result) return result;
+      if (result) {
+        // Gallery returns an array, others return single object
+        return Array.isArray(result) ? result : [result];
+      }
     }
     return null;
   },
@@ -104,14 +107,24 @@ const ImageExtractor = {
       return null;
     }
 
-    const firstItem = postData.gallery_data.items?.[0];
-    if (!firstItem) return null;
+    const items = postData.gallery_data.items;
+    if (!items || items.length === 0) return null;
 
-    const mediaItem = postData.media_metadata[firstItem.media_id];
-    if (!mediaItem || mediaItem.e !== 'Image') return null;
+    const images = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const mediaItem = postData.media_metadata[item.media_id];
+      
+      if (mediaItem && mediaItem.e === 'Image' && mediaItem.s?.u) {
+        const imageUrl = mediaItem.s.u.replace(/&amp;/g, '&');
+        const title = items.length > 1 
+          ? `${postData.title} (${i + 1}/${items.length})`
+          : postData.title;
+        images.push(this.createImageData(imageUrl, title, postData.permalink));
+      }
+    }
     
-    const imageUrl = mediaItem.s.u.replace(/&amp;/g, '&');
-    return this.createImageData(imageUrl, postData.title, postData.permalink);
+    return images.length > 0 ? images : null;
   },
 
   extractPreview(postData) {
@@ -171,7 +184,10 @@ const RedditAPI = {
     const images = [];
     for (const post of posts) {
       const imageData = ImageExtractor.extractFromPost(post.data);
-      if (imageData) images.push(imageData);
+      if (imageData) {
+        // extractFromPost now returns an array
+        images.push(...imageData);
+      }
     }
     return images;
   },

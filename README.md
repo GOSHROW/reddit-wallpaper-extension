@@ -94,10 +94,12 @@ Includes intelligent retry logic:
 Can extract images from multiple Reddit post formats:
 - Direct image links (imgur, external hosts)
 - Reddit-hosted images (i.redd.it)
-- Gallery posts (uses first image)
+- Gallery posts (extracts all images with position indicators)
 - Preview images from Reddit's preview system
 
 All extracted images include CDN priority scoring for optimal loading performance.
+
+**Gallery Post Enhancement**: Multi-image gallery posts now contribute all their images to the pool, not just the first one. Each image is labeled with its position (e.g., "Post Title (3/5)") for better context.
 
 ## Troubleshooting
 
@@ -122,7 +124,8 @@ All extracted images include CDN priority scoring for optimal loading performanc
 
 - **Modular Design**: Code organized into logical modules (Storage, Settings, ImageExtractor, RedditAPI, ImageCache, UI, App)
 - **Cross-Browser Support**: Compatible with Chrome, Firefox, Edge, Brave, Opera
-- **Caching Strategy**: Batch fetching (50 images) with automatic refill when cache drops below 5 images
+- **Caching Strategy**: Batch fetching (50 posts) with automatic refill when cache drops below 5 images
+- **Gallery Support**: Extracts all images from gallery posts (not just the first one)
 - **CDN Prioritization**: Images sorted by source reliability (i.redd.it → imgur → external)
 - **Smart Preloading**: Selective background preloading of slower images only
 - **Error Handling**: Automatic retry mechanism with up to 3 attempts for failed image loads
@@ -210,9 +213,10 @@ All extracted images include CDN priority scoring for optimal loading performanc
 
 ### Key Features
 
-- **Image Format Support**: Direct links, Reddit-hosted (i.redd.it), galleries, previews
+- **Image Format Support**: Direct links, Reddit-hosted (i.redd.it), galleries (all images), previews
 - **Smart Filtering**: Automatically identifies and filters image-containing posts
 - **Efficient Caching**: Minimizes API calls while ensuring fresh content
+- **Gallery Extraction**: Extracts all images from gallery posts with position labels
 - **CDN Prioritization**: Sorts images by source reliability for better success rates
 - **Selective Preloading**: Preloads only slower images to save bandwidth
 - **Retry Logic**: Automatically skips broken/failed images (up to 3 attempts)
