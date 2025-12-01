@@ -344,6 +344,8 @@ const UI = {
       backgroundLayer2: document.getElementById('background-layer-2'),
       loadingIndicator: document.getElementById('loading-indicator'),
       refreshButton: document.getElementById('refresh-button'),
+      keyboardHelp: document.getElementById('keyboard-help'),
+      keyboardTooltip: document.getElementById('keyboard-tooltip'),
       postTitle: document.getElementById('post-title'),
       time: document.getElementById('time'),
       date: document.getElementById('date'),
@@ -355,6 +357,7 @@ const UI = {
     this.loadClockPosition();
     this.loadTimeFormat();
     this.initTimeFormatToggle();
+    this.initKeyboardTooltip();
   },
 
   initClockDrag() {
@@ -484,6 +487,49 @@ const UI = {
   async loadTimeFormat() {
     const { is24HourFormat } = await Storage.get(['is24HourFormat'], { is24HourFormat: true });
     this.is24HourFormat = is24HourFormat;
+  },
+
+  initKeyboardTooltip() {
+    const helpButton = this.elements.keyboardHelp;
+    const tooltip = this.elements.keyboardTooltip;
+    let isTooltipVisible = false;
+
+    const showTooltip = () => {
+      tooltip.classList.remove('hidden');
+      isTooltipVisible = true;
+    };
+
+    const hideTooltip = () => {
+      tooltip.classList.add('hidden');
+      isTooltipVisible = false;
+    };
+
+    const toggleTooltip = (e) => {
+      e.stopPropagation();
+      if (isTooltipVisible) {
+        hideTooltip();
+      } else {
+        showTooltip();
+      }
+    };
+
+    helpButton.addEventListener('click', toggleTooltip);
+
+    // Hide tooltip when clicking outside
+    document.addEventListener('click', (e) => {
+      if (isTooltipVisible && 
+          !tooltip.contains(e.target) && 
+          !helpButton.contains(e.target)) {
+        hideTooltip();
+      }
+    });
+
+    // Hide tooltip on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isTooltipVisible) {
+        hideTooltip();
+      }
+    });
   },
 
   showLoading() {
@@ -649,6 +695,32 @@ const App = {
 
     UI.elements.refreshButton.addEventListener('click', () => {
       this.loadImage(false);
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      const target = e.target;
+      const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+
+      // Space or N - Load next image (only when input not focused)
+      if (!isInputFocused && (e.code === 'Space' || e.key === 'n' || e.key === 'N')) {
+        e.preventDefault();
+        this.loadImage(false);
+      }
+
+      // S - Focus subreddit input (only when input not focused)
+      if (!isInputFocused && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        UI.elements.subredditInput.focus();
+        UI.elements.subredditInput.select();
+      }
+
+      // Escape - Blur/unfocus subreddit input
+      if (e.key === 'Escape') {
+        if (isInputFocused) {
+          UI.elements.subredditInput.blur();
+        }
+      }
     });
   },
 

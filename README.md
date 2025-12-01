@@ -48,6 +48,12 @@ Shows a different image each time you open a new tab.
 - Click on the time to toggle between 12-hour (6:45 PM) and 24-hour (18:45) format
 - All preferences are saved and persist across sessions
 
+**Keyboard shortcuts:**
+- `Space` or `N` - Load next image (same as refresh button)
+- `S` - Focus subreddit input field
+- `Escape` - Unfocus subreddit input
+- Simple, discoverable shortcuts for power users
+
 **Good subreddits to try:**
 - CineShots (movie screenshots)
 - EarthPorn (nature photos)
@@ -207,6 +213,7 @@ All extracted images include CDN priority scoring for optimal loading performanc
 - **Draggable Clock**: Click and drag to reposition anywhere on screen, persists across sessions
 - **Clock Reset**: Double-click clock to return to default center position
 - **Time Format Toggle**: Click time to switch between 12-hour and 24-hour formats
+- **Keyboard Shortcuts**: Space/N for next image, S to focus subreddit, Escape to unfocus
 
 #### Responsive Behavior
 - **Desktop**: Horizontal info bar with all elements in one row
@@ -234,6 +241,7 @@ All extracted images include CDN priority scoring for optimal loading performanc
 - **Manual Refresh**: One-click button to load a new random image without refreshing the tab
 - **Draggable Clock**: Reposition clock anywhere with drag, double-click to reset
 - **Time Format Toggle**: Click time to switch between 12-hour (6:45 PM) and 24-hour (18:45) format
+- **Keyboard Shortcuts**: Space/N for next image, S to focus input, Escape to unfocus
 - **Persistent Preferences**: Clock position and time format saved across sessions
 - **Responsive UI**: Adaptive layout for mobile and desktop with fluid typography
 - **Accessibility**: WCAG 2.1 AA compliant with ARIA labels, keyboard navigation, and motion preferences

@@ -36,6 +36,29 @@
                     <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
                 </svg>
             </button>
+            <button id="keyboard-help" aria-label="Keyboard shortcuts" title="Keyboard shortcuts">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <rect x="2" y="4" width="20" height="16" rx="2"/>
+                    <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h8M6 16h12"/>
+                </svg>
+            </button>
+            <div id="keyboard-tooltip" class="hidden">
+                <div class="tooltip-content">
+                    <div class="tooltip-title">Keyboard Shortcuts</div>
+                    <div class="shortcut-item">
+                        <kbd>Space</kbd> or <kbd>N</kbd>
+                        <span>Next image</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>S</kbd>
+                        <span>Focus subreddit</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>Esc</kbd>
+                        <span>Unfocus input</span>
+                    </div>
+                </div>
+            </div>
             <div id="loading-indicator" class="hidden">
                 <div class="spinner"></div>
             </div>
