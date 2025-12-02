@@ -1,6 +1,30 @@
 // Cross-browser compatibility
 const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
 
+const Logger = {
+  prefix: '🖼️ [Reddit Wallpaper]',
+  
+  info(module, message, data = {}) {
+    console.log(`${this.prefix} ℹ️ [${module}]`, message, data);
+  },
+  
+  success(module, message, data = {}) {
+    console.log(`${this.prefix} ✅ [${module}]`, message, data);
+  },
+  
+  warn(module, message, data = {}) {
+    console.warn(`${this.prefix} ⚠️ [${module}]`, message, data);
+  },
+  
+  error(module, message, data = {}) {
+    console.error(`${this.prefix} ❌ [${module}]`, message, data);
+  },
+  
+  debug(module, message, data = {}) {
+    console.log(`${this.prefix} 🔍 [${module}]`, message, data);
+  }
+};
+
 const CONFIG = {
   DEFAULT_SUBREDDIT: 'CineShots',
   DEFAULT_POST_LIMIT: 50,
@@ -8,6 +32,8 @@ const CONFIG = {
   PRELOAD_COUNT: 5,
   PRELOAD_PRIORITY_THRESHOLD: 85,
   IMAGE_INDICATORS: ['.jpg', '.jpeg', '.png', '.gif', 'i.redd.it', 'i.imgur.com'],
+  ALLOWED_IMAGE_FORMATS: ['.jpg', '.jpeg', '.png', '.webp'],
+  BLOCKED_FORMATS: ['.gifv', '.mp4', '.webm', '.mov', 'v.redd.it', 'gfycat.com', 'redgifs.com'],
   REDDIT_API_BASE: 'https://www.reddit.com',
   USER_AGENT: 'Mozilla/5.0 (compatible; ChromeExtension/1.0)',
   CDN_PRIORITY: {
@@ -61,11 +87,21 @@ const ImageExtractor = {
     for (const extractor of extractors) {
       const result = extractor.call(this, postData);
       if (result) {
-        // Gallery returns an array, others return single object
         return Array.isArray(result) ? result : [result];
       }
     }
+    
     return null;
+  },
+
+  isValidImageFormat(url) {
+    const urlLower = url.toLowerCase();
+    
+    if (CONFIG.BLOCKED_FORMATS.some(format => urlLower.includes(format))) {
+      return false;
+    }
+    
+    return CONFIG.ALLOWED_IMAGE_FORMATS.some(format => urlLower.includes(format));
   },
 
   getCDNPriority(url) {
@@ -78,12 +114,19 @@ const ImageExtractor = {
     return CONFIG.CDN_PRIORITY.default;
   },
 
-  createImageData(imageUrl, title, permalink) {
+  createImageData(imageUrl, title, permalink, postData) {
+    if (!this.isValidImageFormat(imageUrl)) {
+      return null;
+    }
+    
     return {
       imageUrl,
       title,
       permalink: permalink ? `https://reddit.com${permalink}` : null,
-      cdnPriority: this.getCDNPriority(imageUrl)
+      cdnPriority: this.getCDNPriority(imageUrl),
+      author: postData?.author,
+      score: postData?.score,
+      created: postData?.created_utc
     };
   },
 
@@ -92,14 +135,14 @@ const ImageExtractor = {
     const hasImageIndicator = CONFIG.IMAGE_INDICATORS.some(indicator => url.includes(indicator));
     if (!hasImageIndicator) return null;
     
-    return this.createImageData(postData.url, postData.title, postData.permalink);
+    return this.createImageData(postData.url, postData.title, postData.permalink, postData);
   },
 
   extractRedditHosted(postData) {
     const isRedditImage = postData.domain === 'i.redd.it' || postData.post_hint === 'image';
     if (!isRedditImage) return null;
     
-    return this.createImageData(postData.url, postData.title, postData.permalink);
+    return this.createImageData(postData.url, postData.title, postData.permalink, postData);
   },
 
   extractGallery(postData) {
@@ -120,7 +163,10 @@ const ImageExtractor = {
         const title = items.length > 1 
           ? `${postData.title} (${i + 1}/${items.length})`
           : postData.title;
-        images.push(this.createImageData(imageUrl, title, postData.permalink));
+        const imageData = this.createImageData(imageUrl, title, postData.permalink, postData);
+        if (imageData) {
+          images.push(imageData);
+        }
       }
     }
     
@@ -132,23 +178,28 @@ const ImageExtractor = {
     if (!previewImage) return null;
     
     const imageUrl = previewImage.url.replace(/&amp;/g, '&');
-    return this.createImageData(imageUrl, postData.title, postData.permalink);
+    return this.createImageData(imageUrl, postData.title, postData.permalink, postData);
   }
 };
 
 const RedditAPI = {
   async fetchPosts(subreddit) {
+    Logger.info('RedditAPI', `Fetching from r/${subreddit}`);
     const url = `${CONFIG.REDDIT_API_BASE}/r/${subreddit}/new.json?limit=${CONFIG.DEFAULT_POST_LIMIT}`;
+    
     const response = await fetch(url, {
       headers: { 'User-Agent': CONFIG.USER_AGENT }
     });
     
     if (!response.ok) {
+      Logger.error('RedditAPI', `Fetch failed (${response.status})`, { subreddit });
       throw new Error(this.getErrorMessage(response.status, subreddit));
     }
     
     const data = await response.json();
-    return data?.data?.children || [];
+    const posts = data?.data?.children || [];
+    Logger.success('RedditAPI', `Fetched ${posts.length} posts`);
+    return posts;
   },
 
   getErrorMessage(status, subreddit) {
@@ -165,7 +216,7 @@ const RedditAPI = {
   },
 
   filterImagePosts(posts, allowNSFW = false) {
-    return posts.filter(post => {
+    const filtered = posts.filter(post => {
       const data = post.data;
       if (data.is_self || (!allowNSFW && data.over_18)) return false;
 
@@ -178,6 +229,9 @@ const RedditAPI = {
              data.is_gallery || 
              data.preview?.images;
     });
+    
+    Logger.info('RedditAPI', `Filtered to ${filtered.length} image posts (NSFW: ${allowNSFW})`);
+    return filtered;
   },
 
   extractImages(posts) {
@@ -185,10 +239,10 @@ const RedditAPI = {
     for (const post of posts) {
       const imageData = ImageExtractor.extractFromPost(post.data);
       if (imageData) {
-        // extractFromPost now returns an array
         images.push(...imageData);
       }
     }
+    Logger.info('RedditAPI', `Extracted ${images.length} images`);
     return images;
   },
 
@@ -214,6 +268,8 @@ const ImageCache = {
   currentPreloadBatch: 0,
 
   async fetch(subreddit) {
+    Logger.info('ImageCache', `Fetching r/${subreddit}`);
+    
     const posts = await RedditAPI.fetchPosts(subreddit);
     this.validatePosts(posts, subreddit);
     
@@ -232,6 +288,7 @@ const ImageCache = {
       cacheTimestamp: Date.now() 
     });
     
+    Logger.success('ImageCache', `Cached ${sorted.length} images`);
     this.preloadImages(sorted.slice(0, CONFIG.PRELOAD_COUNT));
     return sorted;
   },
@@ -270,24 +327,18 @@ const ImageCache = {
     
     if (preloadList.length === 0) return;
     
-    console.log(`Starting preload batch #${batchId} (${preloadList.length} images)`);
+    Logger.info('ImageCache', `Preloading ${preloadList.length} images`);
     
-    preloadList.forEach((imageData, index) => {
+    preloadList.forEach((imageData) => {
       const img = new Image();
-      
       img.onload = () => {
-        if (batchId === this.currentPreloadBatch) {
-          const urlPreview = imageData.imageUrl.substring(0, 50);
-          console.log(`✓ Preloaded ${index + 1}/${preloadList.length} [${urlPreview}...] (priority: ${imageData.cdnPriority || 50})`);
-        }
+        if (batchId !== this.currentPreloadBatch) return;
       };
-      
       img.onerror = () => {
         if (batchId === this.currentPreloadBatch) {
-          console.warn(`✗ Failed to preload ${index + 1}/${preloadList.length}:`, imageData.imageUrl);
+          Logger.warn('ImageCache', 'Preload failed', { url: imageData.imageUrl.substring(0, 60) });
         }
       };
-      
       img.src = imageData.imageUrl;
     });
   },
@@ -302,7 +353,7 @@ const ImageCache = {
                          imageCache.length < CONFIG.CACHE_MIN_THRESHOLD;
     
     if (needsRefetch) {
-      console.log('Cache running low or subreddit changed, fetching new images...');
+      Logger.info('ImageCache', 'Refetching (low cache or subreddit change)');
       return this.fetch(currentSubreddit).then(cache => {
         const image = cache.shift();
         Storage.setLocal({ imageCache: cache });
@@ -315,7 +366,6 @@ const ImageCache = {
     
     if (imageCache.length <= CONFIG.PRELOAD_COUNT && imageCache.length > 0) {
       const count = Math.min(CONFIG.PRELOAD_COUNT, imageCache.length);
-      console.log(`Preloading next ${count} images...`);
       this.preloadImages(imageCache.slice(0, count));
     }
     
@@ -338,6 +388,7 @@ const UI = {
   clockPosition: null,
   isDragging: false,
   is24HourFormat: true,
+  currentImageData: null,
 
   init() {
     this.elements = {
@@ -348,6 +399,10 @@ const UI = {
       refreshButton: document.getElementById('refresh-button'),
       keyboardHelp: document.getElementById('keyboard-help'),
       keyboardTooltip: document.getElementById('keyboard-tooltip'),
+      infoResolution: document.getElementById('info-resolution'),
+      infoScore: document.getElementById('info-score'),
+      infoAge: document.getElementById('info-age'),
+      infoAuthor: document.getElementById('info-author'),
       postTitle: document.getElementById('post-title'),
       time: document.getElementById('time'),
       date: document.getElementById('date'),
@@ -495,10 +550,12 @@ const UI = {
     const helpButton = this.elements.keyboardHelp;
     const tooltip = this.elements.keyboardTooltip;
     const nsfwToggle = document.getElementById('allow-nsfw-toggle');
-    let isTooltipVisible = false;
 
-    Storage.get(['allowNSFW'], { allowNSFW: false }).then(({ allowNSFW }) => {
+    Storage.get(['allowNSFW', 'tooltipVisible'], { allowNSFW: false, tooltipVisible: false }).then(({ allowNSFW, tooltipVisible }) => {
       nsfwToggle.checked = allowNSFW;
+      if (tooltipVisible) {
+        tooltip.classList.remove('hidden');
+      }
     });
 
     nsfwToggle.addEventListener('change', async () => {
@@ -513,6 +570,7 @@ const UI = {
           const image = imageCache[0];
           UI.setBackgroundImage(image.imageUrl, image.title, image.permalink, 
             () => App.loadImage(false, 1));
+          UI.updateImageInfo(image);
           await Storage.setLocal({ imageCache: imageCache.slice(1) });
         }
       } catch (error) {
@@ -520,30 +578,62 @@ const UI = {
       }
     });
 
-    const showTooltip = () => {
-      tooltip.classList.remove('hidden');
-      isTooltipVisible = true;
-    };
-
-    const hideTooltip = () => {
-      tooltip.classList.add('hidden');
-      isTooltipVisible = false;
-    };
-
-    helpButton.addEventListener('click', (e) => {
+    helpButton.addEventListener('click', async (e) => {
       e.stopPropagation();
-      isTooltipVisible ? hideTooltip() : showTooltip();
-    });
-
-    document.addEventListener('click', (e) => {
-      if (isTooltipVisible && !tooltip.contains(e.target) && !helpButton.contains(e.target)) {
-        hideTooltip();
+      const isVisible = !tooltip.classList.contains('hidden');
+      
+      if (isVisible) {
+        tooltip.classList.add('hidden');
+        await Storage.set({ tooltipVisible: false });
+      } else {
+        tooltip.classList.remove('hidden');
+        await Storage.set({ tooltipVisible: true });
       }
     });
+  },
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && isTooltipVisible) hideTooltip();
-    });
+  updateImageInfo(imageData) {
+    this.currentImageData = imageData;
+    
+    if (imageData.author) {
+      this.elements.infoAuthor.textContent = `u/${imageData.author}`;
+    }
+    if (imageData.score !== undefined) {
+      this.elements.infoScore.textContent = imageData.score.toLocaleString();
+    }
+    if (imageData.created) {
+      const age = this.getTimeAgo(imageData.created);
+      this.elements.infoAge.textContent = age;
+    }
+    
+    this.elements.infoResolution.textContent = 'Loading...';
+    const img = new Image();
+    img.onload = () => {
+      this.elements.infoResolution.textContent = `${img.width} × ${img.height}`;
+    };
+    img.onerror = () => {
+      this.elements.infoResolution.textContent = 'Unknown';
+    };
+    img.src = imageData.imageUrl;
+  },
+
+  getTimeAgo(timestamp) {
+    const seconds = Math.floor(Date.now() / 1000 - timestamp);
+    const intervals = [
+      { label: 'year', seconds: 31536000 },
+      { label: 'month', seconds: 2592000 },
+      { label: 'day', seconds: 86400 },
+      { label: 'hour', seconds: 3600 },
+      { label: 'minute', seconds: 60 }
+    ];
+    
+    for (const interval of intervals) {
+      const count = Math.floor(seconds / interval.seconds);
+      if (count >= 1) {
+        return `${count}${interval.label.charAt(0)} ago`;
+      }
+    }
+    return 'just now';
   },
 
   showLoading() {
@@ -554,13 +644,11 @@ const UI = {
     this.elements.loading?.classList.add('hidden');
   },
 
-  setBackgroundImage(imageUrl, title, permalink, onError) {
+  setBackgroundImage(imageUrl, title, permalink, onSuccess, onError) {
     const { backgroundLayer1, backgroundLayer2, loadingIndicator, postTitle } = this.elements;
     const img = new Image();
-    const startTime = performance.now();
     let loadingTimeout;
     
-    // Show loading indicator after 100ms if image hasn't loaded
     loadingTimeout = setTimeout(() => {
       loadingIndicator.classList.remove('hidden');
     }, 100);
@@ -569,23 +657,16 @@ const UI = {
       clearTimeout(loadingTimeout);
       loadingIndicator.classList.add('hidden');
       
-      // Determine which layer to use (alternate between them)
       const newLayer = this.currentLayer === 1 ? backgroundLayer2 : backgroundLayer1;
       const oldLayer = this.currentLayer === 1 ? backgroundLayer1 : backgroundLayer2;
       
-      // Set new image on inactive layer
-      newLayer.style.backgroundImage = `url('${imageUrl}')`;
+      Logger.success('UI', `Layer ${this.currentLayer} → ${this.currentLayer === 1 ? 2 : 1}`);
       
-      // Crossfade: fade in new layer, fade out old layer
+      newLayer.style.backgroundImage = `url('${imageUrl}')`;
+      oldLayer.style.backgroundImage = 'none';
       newLayer.style.opacity = '1';
       oldLayer.style.opacity = '0';
       
-      // Clear old layer's image after transition completes
-      setTimeout(() => {
-        oldLayer.style.backgroundImage = 'none';
-      }, 600);
-      
-      // Update title
       if (permalink) {
         postTitle.innerHTML = `<a href="${permalink}" target="_blank" rel="noopener noreferrer">${title}</a>`;
       } else {
@@ -593,15 +674,17 @@ const UI = {
       }
       
       this.clearError();
-      
-      // Switch current layer reference
       this.currentLayer = this.currentLayer === 1 ? 2 : 1;
+      
+      if (onSuccess) {
+        onSuccess();
+      }
     };
 
     img.onerror = () => {
       clearTimeout(loadingTimeout);
       loadingIndicator.classList.add('hidden');
-      console.error('Failed to load image:', imageUrl);
+      Logger.error('UI', 'Image load failed', { url: imageUrl.substring(0, 60) });
       
       if (onError) {
         onError();
@@ -654,8 +737,31 @@ const UI = {
 const App = {
   currentSubreddit: CONFIG.DEFAULT_SUBREDDIT,
   maxRetries: 3,
+  isLoadingImage: false,
+  lastLoadTime: 0,
+  minLoadInterval: 400,
 
   async loadImage(showLoading = false, retryCount = 0) {
+    const now = Date.now();
+    if (this.isLoadingImage) {
+      UI.elements.loadingIndicator?.classList.remove('hidden');
+      return;
+    }
+    
+    if (now - this.lastLoadTime < this.minLoadInterval && retryCount === 0) {
+      Logger.warn('App', 'Throttled', { wait: this.minLoadInterval - (now - this.lastLoadTime) });
+      UI.elements.loadingIndicator?.classList.remove('hidden');
+      setTimeout(() => {
+        UI.elements.loadingIndicator?.classList.add('hidden');
+      }, this.minLoadInterval - (now - this.lastLoadTime));
+      return;
+    }
+
+    this.isLoadingImage = true;
+    if (retryCount > 0) {
+      Logger.info('App', `Retry ${retryCount}/${this.maxRetries}`);
+    }
+    
     if (showLoading) UI.showLoading();
 
     try {
@@ -666,21 +772,30 @@ const App = {
         throw new Error('No images in cache. Try refreshing the page');
       }
       
+      const onSuccess = () => {
+        this.lastLoadTime = Date.now();
+        this.isLoadingImage = false;
+      };
+      
       const onError = async () => {
-        console.log(`Image load failed (attempt ${retryCount + 1}/${this.maxRetries})`);
+        Logger.error('App', `Load failed (${retryCount + 1}/${this.maxRetries})`);
         
         if (retryCount < this.maxRetries) {
+          this.isLoadingImage = false;
           await this.loadImage(false, retryCount + 1);
         } else {
-          console.error('Max retries reached');
+          Logger.error('App', 'Max retries reached');
           UI.showError('Multiple images failed to load. Try a different subreddit like "CineShots"');
+          this.isLoadingImage = false;
         }
       };
       
-      UI.setBackgroundImage(image.imageUrl, image.title, image.permalink, onError);
+      UI.setBackgroundImage(image.imageUrl, image.title, image.permalink, onSuccess, onError);
+      UI.updateImageInfo(image);
     } catch (error) {
-      console.error('Failed to load image:', error);
+      Logger.error('App', 'Failed to load image', error);
       UI.showError(error.message);
+      this.isLoadingImage = false;
     } finally {
       if (showLoading) UI.hideLoading();
     }
@@ -690,6 +805,7 @@ const App = {
     const newSubreddit = UI.getSubreddit();
     
     if (newSubreddit !== this.currentSubreddit) {
+      Logger.info('App', `Subreddit: ${this.currentSubreddit} → ${newSubreddit}`);
       await Settings.save(newSubreddit);
       await ImageCache.clear();
       await this.loadImage(true);
@@ -716,8 +832,9 @@ const App = {
       const target = e.target;
       const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
 
-      if (!isInputFocused && (e.code === 'Space' || e.key === 'n' || e.key === 'N')) {
-        if (e.shiftKey && e.key === 'N') {
+      // Next image: N or Right Arrow
+      if (!isInputFocused && (e.key === 'n' || e.key === 'N' || e.key === 'ArrowRight')) {
+        if (e.shiftKey && (e.key === 'N' || e.key === 'n')) {
           e.preventDefault();
           const nsfwToggle = document.getElementById('allow-nsfw-toggle');
           nsfwToggle.click();
@@ -727,12 +844,14 @@ const App = {
         }
       }
 
-      if (!isInputFocused && (e.key === 's' || e.key === 'S')) {
+      // Focus subreddit: S or /
+      if (!isInputFocused && (e.key === 's' || e.key === 'S' || e.key === '/')) {
         e.preventDefault();
         UI.elements.subredditInput.focus();
         UI.elements.subredditInput.select();
       }
 
+      // Unfocus: Escape or blur input
       if (e.key === 'Escape') {
         if (isInputFocused) {
           UI.elements.subredditInput.blur();
@@ -742,6 +861,8 @@ const App = {
   },
 
   async init() {
+    Logger.info('App', 'Initializing');
+    
     UI.init();
     UI.updateClock();
     setInterval(() => UI.updateClock(), 1000);
@@ -752,11 +873,13 @@ const App = {
     
     this.setupEventListeners();
     await this.loadImage(false);
+    
+    Logger.success('App', 'Ready');
   }
 };
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => App.init());
-} else {
+        } else {
   App.init();
 }

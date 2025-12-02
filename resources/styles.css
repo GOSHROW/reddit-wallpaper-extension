@@ -30,6 +30,7 @@ body {
 
 #background-layer-1 {
   z-index: 1;
+  opacity: 1;
 }
 
 #background-layer-2 {
@@ -333,6 +334,36 @@ body {
   margin-bottom: 4px;
   opacity: 0.9;
   text-align: left;
+}
+
+.image-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+}
+
+.info-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.info-value {
+  opacity: 0.95;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.8rem;
 }
 
 .shortcut-item {

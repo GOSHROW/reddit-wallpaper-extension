@@ -49,10 +49,10 @@ Shows a different image each time you open a new tab.
 - All preferences are saved and persist across sessions
 
 **Keyboard shortcuts:**
-- `Space` or `N` - Load next image (same as refresh button)
-- `Shift + N` - Toggle NSFW content filter
-- `S` - Focus subreddit input field
+- `N` or `→` (Right Arrow) - Load next image (same as refresh button)
+- `/` or `S` - Focus subreddit input field (universal search pattern)
 - `Escape` - Unfocus subreddit input
+- `Shift + N` - Toggle NSFW content filter
 - Simple, discoverable shortcuts for power users
 
 **NSFW filtering:**
@@ -103,11 +103,14 @@ First 5 tabs after opening load nearly instantly with zero visible loading scree
 
 ### Smart Image Loading
 
-Includes intelligent retry logic:
-- If an image fails to load (broken URL, CORS issue, deleted content), automatically tries the next image
-- Up to 3 automatic retries to handle transient failures
-- Prevents infinite loops by using different images from cache
-- Only shows error if multiple consecutive images fail
+Includes intelligent retry logic with request throttling:
+- **Automatic Retries**: If an image fails to load (broken URL, CORS issue, deleted content), automatically tries the next image
+- **Up to 3 Attempts**: Retries up to 3 times to handle transient failures
+- **Race Condition Prevention**: 400ms cooldown between successful loads prevents overlapping requests
+- **Lock-Based Throttling**: Only one image can load at a time, released when image actually completes
+- **Visual Feedback**: Loading spinner appears during throttle periods for user awareness
+- **Format Validation**: Only loads static images (.jpg, .jpeg, .png, .webp), blocks GIFs and videos
+- **Smart Error Messages**: Only shows error if multiple consecutive images fail
 
 ### Image Extraction
 
@@ -117,7 +120,10 @@ Can extract images from multiple Reddit post formats:
 - Gallery posts (extracts all images with position indicators)
 - Preview images from Reddit's preview system
 
-All extracted images include CDN priority scoring for optimal loading performance.
+All extracted images include:
+- **CDN priority scoring** for optimal loading performance
+- **Format validation** to ensure only static images (.jpg, .jpeg, .png, .webp)
+- **Automatic filtering** of videos (.gifv, .mp4, .webm, .mov) and video hosting domains (v.redd.it, gfycat, redgifs)
 
 **Gallery Post Enhancement**: Multi-image gallery posts now contribute all their images to the pool, not just the first one. Each image is labeled with its position (e.g., "Post Title (3/5)") for better context.
 
@@ -142,7 +148,7 @@ All extracted images include CDN priority scoring for optimal loading performanc
 
 ### Architecture
 
-- **Modular Design**: Code organized into logical modules (Storage, Settings, ImageExtractor, RedditAPI, ImageCache, UI, App)
+- **Modular Design**: Code organized into logical modules (Logger, Storage, Settings, ImageExtractor, RedditAPI, ImageCache, UI, App)
 - **Cross-Browser Support**: Compatible with Chrome, Firefox, Edge, Brave, Opera
 - **Caching Strategy**: Batch fetching (50 posts) with automatic refill when cache drops below 5 images
 - **Gallery Support**: Extracts all images from gallery posts (not just the first one)
@@ -150,6 +156,8 @@ All extracted images include CDN priority scoring for optimal loading performanc
 - **CDN Prioritization**: Images sorted by source reliability (i.redd.it → imgur → external)
 - **Smart Preloading**: Selective background preloading of slower images only
 - **Error Handling**: Automatic retry mechanism with up to 3 attempts for failed image loads
+- **Request Throttling**: 400ms cooldown with visual feedback to prevent race conditions
+- **Comprehensive Logging**: Structured debug logging for development and troubleshooting
 - **State Management**: Uses Browser Storage API (sync for settings, local for cache)
 - **User-Friendly Messages**: Context-aware error messages with actionable suggestions
 - **Customizable Clock**: Draggable positioning with persistent storage and format toggle (12/24 hour)
@@ -221,7 +229,8 @@ All extracted images include CDN priority scoring for optimal loading performanc
 - **Draggable Clock**: Click and drag to reposition anywhere on screen, persists across sessions
 - **Clock Reset**: Double-click clock to return to default center position
 - **Time Format Toggle**: Click time to switch between 12-hour and 24-hour formats
-- **Keyboard Shortcuts**: Space/N for next image, S to focus subreddit, Escape to unfocus
+- **Keyboard Shortcuts**: N/→ for next image, S/slash to focus subreddit, Escape to unfocus
+- **Keyboard Help Tooltip**: Persistent tooltip showing image info, shortcuts, and settings (click ⌨️ icon)
 
 #### Responsive Behavior
 - **Desktop**: Horizontal info bar with all elements in one row
@@ -249,9 +258,11 @@ All extracted images include CDN priority scoring for optimal loading performanc
 - **Manual Refresh**: One-click button to load a new random image without refreshing the tab
 - **Draggable Clock**: Reposition clock anywhere with drag, double-click to reset
 - **Time Format Toggle**: Click time to switch between 12-hour (6:45 PM) and 24-hour (18:45) format
-- **Keyboard Shortcuts**: Space/N for next image, S to focus input, Escape to unfocus
+- **Keyboard Shortcuts**: N/→ for next image, S/slash to focus input, Escape to unfocus
 - **NSFW Filtering**: Safe by default, optional toggle in keyboard shortcuts menu
-- **Persistent Preferences**: Clock position, time format, and NSFW setting saved across sessions
+- **Image Info Display**: Shows resolution, score, post age, and author in persistent tooltip
+- **Persistent Preferences**: Clock position, time format, NSFW setting, and tooltip visibility saved across sessions
+- **Request Throttling**: 500ms cooldown between image loads to prevent race conditions
 - **Responsive UI**: Adaptive layout for mobile and desktop with fluid typography
 - **Accessibility**: WCAG 2.1 AA compliant with ARIA labels, keyboard navigation, and motion preferences
 - **Performance**: Background preloading, CSS transitions with will-change, crossfade animations
@@ -261,10 +272,11 @@ All extracted images include CDN priority scoring for optimal loading performanc
 
 ### Storage
 
-- **Sync Storage**: User preferences (subreddit name, clock position, time format, NSFW filter)
+- **Sync Storage**: User preferences (subreddit name, clock position, time format, NSFW filter, tooltip visibility)
 - **Local Storage**: Image cache with metadata
   - Image URLs, titles, and permalinks
   - CDN priority scores for each image
+  - Image metadata (author, score, post age, resolution)
   - Cache subreddit and timestamp
   - Typically ~15KB for 50 images
 
