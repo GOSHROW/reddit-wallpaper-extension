@@ -302,7 +302,7 @@ const ImageCache = {
   validateImagePosts(imagePosts, subreddit, allowNSFW) {
     if (imagePosts.length === 0) {
       if (!allowNSFW) {
-        throw new Error(`r/${subreddit} may contain only NSFW content. Enable "Allow NSFW" in ⌨️ settings or try "CineShots"`);
+        throw new Error(`r/${subreddit} contains only NSFW content. Enable "Allow NSFW" in settings or try "CineShots"`);
       }
       throw new Error(`r/${subreddit} has no image posts. Try "wallpapers" or "spaceporn"`);
     }
@@ -395,10 +395,11 @@ const UI = {
       backgroundContainer: document.getElementById('background-container'),
       backgroundLayer1: document.getElementById('background-layer-1'),
       backgroundLayer2: document.getElementById('background-layer-2'),
-      loadingIndicator: document.getElementById('loading-indicator'),
       refreshButton: document.getElementById('refresh-button'),
       keyboardHelp: document.getElementById('keyboard-help'),
       keyboardTooltip: document.getElementById('keyboard-tooltip'),
+      blurToggle: document.getElementById('blur-toggle'),
+      nsfwToggle: document.getElementById('nsfw-toggle'),
       infoResolution: document.getElementById('info-resolution'),
       infoScore: document.getElementById('info-score'),
       infoAge: document.getElementById('info-age'),
@@ -415,6 +416,8 @@ const UI = {
     this.loadTimeFormat();
     this.initTimeFormatToggle();
     this.initKeyboardTooltip();
+    this.initBlurToggle();
+    this.initNsfwToggle();
   },
 
   initClockDrag() {
@@ -549,32 +552,10 @@ const UI = {
   initKeyboardTooltip() {
     const helpButton = this.elements.keyboardHelp;
     const tooltip = this.elements.keyboardTooltip;
-    const nsfwToggle = document.getElementById('allow-nsfw-toggle');
 
-    Storage.get(['allowNSFW', 'tooltipVisible'], { allowNSFW: false, tooltipVisible: false }).then(({ allowNSFW, tooltipVisible }) => {
-      nsfwToggle.checked = allowNSFW;
+    Storage.get(['tooltipVisible'], { tooltipVisible: false }).then(({ tooltipVisible }) => {
       if (tooltipVisible) {
         tooltip.classList.remove('hidden');
-      }
-    });
-
-    nsfwToggle.addEventListener('change', async () => {
-      await Storage.set({ allowNSFW: nsfwToggle.checked });
-      await ImageCache.clear();
-      
-      const currentSubreddit = UI.getSubreddit();
-      try {
-        await ImageCache.fetch(currentSubreddit);
-        const { imageCache } = await Storage.getLocal(['imageCache']);
-        if (imageCache?.length > 0) {
-          const image = imageCache[0];
-          UI.setBackgroundImage(image.imageUrl, image.title, image.permalink, 
-            () => App.loadImage(false, 1));
-          UI.updateImageInfo(image);
-          await Storage.setLocal({ imageCache: imageCache.slice(1) });
-        }
-      } catch (error) {
-        UI.showError(error.message);
       }
     });
 
@@ -644,18 +625,86 @@ const UI = {
     this.elements.loading?.classList.add('hidden');
   },
 
+  initBlurToggle() {
+    const blurToggle = this.elements.blurToggle;
+    const blurCheckbox = document.getElementById('blur-toggle-checkbox');
+    const backgroundContainer = this.elements.backgroundContainer;
+    
+    const setBlurState = (isBlurred) => {
+      if (isBlurred) {
+        backgroundContainer.classList.add('blurred');
+        blurToggle.classList.add('active');
+        blurCheckbox.checked = true;
+      } else {
+        backgroundContainer.classList.remove('blurred');
+        blurToggle.classList.remove('active');
+        blurCheckbox.checked = false;
+      }
+    };
+    
+    Storage.get(['backgroundBlur'], { backgroundBlur: false }).then(({ backgroundBlur }) => {
+      setBlurState(backgroundBlur);
+    });
+    
+    const toggleBlur = async () => {
+      const isBlurred = backgroundContainer.classList.contains('blurred');
+      setBlurState(!isBlurred);
+      await Storage.set({ backgroundBlur: !isBlurred });
+      Logger.info('UI', `Background blur: ${!isBlurred ? 'ON' : 'OFF'}`);
+    };
+    
+    blurToggle.addEventListener('click', toggleBlur);
+    blurCheckbox.addEventListener('change', toggleBlur);
+  },
+
+  initNsfwToggle() {
+    const nsfwToggleButton = this.elements.nsfwToggle;
+    const nsfwCheckbox = document.getElementById('allow-nsfw-toggle');
+    
+    const setNsfwState = (allowNSFW) => {
+      if (allowNSFW) {
+        nsfwToggleButton.classList.add('active');
+        nsfwCheckbox.checked = true;
+      } else {
+        nsfwToggleButton.classList.remove('active');
+        nsfwCheckbox.checked = false;
+      }
+    };
+    
+    Storage.get(['allowNSFW'], { allowNSFW: false }).then(({ allowNSFW }) => {
+      setNsfwState(allowNSFW);
+    });
+    
+    const toggleNsfw = async () => {
+      const currentState = nsfwCheckbox.checked;
+      const newState = !currentState;
+      setNsfwState(newState);
+      await Storage.set({ allowNSFW: newState });
+      await ImageCache.clear();
+      Logger.info('UI', `NSFW filter: ${newState ? 'OFF' : 'ON'}`);
+    };
+    
+    nsfwToggleButton.addEventListener('click', toggleNsfw);
+    nsfwCheckbox.addEventListener('change', async () => {
+      setNsfwState(nsfwCheckbox.checked);
+      await Storage.set({ allowNSFW: nsfwCheckbox.checked });
+      await ImageCache.clear();
+      Logger.info('UI', `NSFW filter: ${nsfwCheckbox.checked ? 'OFF' : 'ON'}`);
+    });
+  },
+
   setBackgroundImage(imageUrl, title, permalink, onSuccess, onError) {
-    const { backgroundLayer1, backgroundLayer2, loadingIndicator, postTitle } = this.elements;
+    const { backgroundLayer1, backgroundLayer2, refreshButton, postTitle } = this.elements;
     const img = new Image();
     let loadingTimeout;
     
     loadingTimeout = setTimeout(() => {
-      loadingIndicator.classList.remove('hidden');
+      refreshButton.classList.add('loading');
     }, 100);
     
     img.onload = () => {
       clearTimeout(loadingTimeout);
-      loadingIndicator.classList.add('hidden');
+      refreshButton.classList.remove('loading');
       
       const newLayer = this.currentLayer === 1 ? backgroundLayer2 : backgroundLayer1;
       const oldLayer = this.currentLayer === 1 ? backgroundLayer1 : backgroundLayer2;
@@ -683,13 +732,13 @@ const UI = {
 
     img.onerror = () => {
       clearTimeout(loadingTimeout);
-      loadingIndicator.classList.add('hidden');
+      refreshButton.classList.remove('loading');
       Logger.error('UI', 'Image load failed', { url: imageUrl.substring(0, 60) });
       
       if (onError) {
         onError();
       } else {
-        this.showError('This image is unavailable. Refresh the page for a new one.');
+        this.showError('This image is unavailable. Click refresh or press N for another');
       }
     };
 
@@ -744,15 +793,15 @@ const App = {
   async loadImage(showLoading = false, retryCount = 0) {
     const now = Date.now();
     if (this.isLoadingImage) {
-      UI.elements.loadingIndicator?.classList.remove('hidden');
+      UI.elements.refreshButton?.classList.add('loading');
       return;
     }
     
     if (now - this.lastLoadTime < this.minLoadInterval && retryCount === 0) {
       Logger.warn('App', 'Throttled', { wait: this.minLoadInterval - (now - this.lastLoadTime) });
-      UI.elements.loadingIndicator?.classList.remove('hidden');
+      UI.elements.refreshButton?.classList.add('loading');
       setTimeout(() => {
-        UI.elements.loadingIndicator?.classList.add('hidden');
+        UI.elements.refreshButton?.classList.remove('loading');
       }, this.minLoadInterval - (now - this.lastLoadTime));
       return;
     }
@@ -769,7 +818,7 @@ const App = {
       const image = await ImageCache.getNext(this.currentSubreddit);
       
       if (!image) {
-        throw new Error('No images in cache. Try refreshing the page');
+        throw new Error('No images in cache. Click refresh or press N to load');
       }
       
       const onSuccess = () => {
@@ -851,10 +900,28 @@ const App = {
         UI.elements.subredditInput.select();
       }
 
+      // Toggle blur: B
+      if (!isInputFocused && (e.key === 'b' || e.key === 'B')) {
+        e.preventDefault();
+        UI.elements.blurToggle.click();
+      }
+
+      // Toggle help/info: ? or I
+      if (!isInputFocused && (e.key === '?' || e.key === 'i' || e.key === 'I')) {
+        e.preventDefault();
+        UI.elements.keyboardHelp.click();
+      }
+
       // Unfocus: Escape or blur input
       if (e.key === 'Escape') {
         if (isInputFocused) {
           UI.elements.subredditInput.blur();
+        } else {
+          // Close tooltip if open
+          const tooltip = UI.elements.keyboardTooltip;
+          if (!tooltip.classList.contains('hidden')) {
+            UI.elements.keyboardHelp.click();
+          }
         }
       }
     });

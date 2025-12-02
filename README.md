@@ -49,15 +49,22 @@ Shows a different image each time you open a new tab.
 - All preferences are saved and persist across sessions
 
 **Keyboard shortcuts:**
-- `N` or `→` (Right Arrow) - Load next image (same as refresh button)
-- `/` or `S` - Focus subreddit input field (universal search pattern)
-- `Escape` - Unfocus subreddit input
+- `N` or `→` (Right Arrow) - Load next image
+- `/` or `S` - Focus subreddit input field
+- `I` or `?` - Toggle info & shortcuts menu
+- `B` - Toggle background blur
 - `Shift + N` - Toggle NSFW content filter
+- `Escape` - Close info menu / Unfocus input
 - Simple, discoverable shortcuts for power users
 
+**Blur Toggle:**
+- Click the eye icon (👁️) in the bottom bar to toggle a subtle blur filter on the background image
+- Useful for improving text readability when the wallpaper is too busy or bright
+- Setting persists across sessions
+
 **NSFW filtering:**
+- Click the lock icon (🔒) in the bottom bar to toggle NSFW content filtering
 - NSFW content filtered by default (safe for work)
-- Toggle "Allow NSFW" in keyboard shortcuts menu (⌨️ icon)
 - Setting persists across sessions
 - Cache automatically refreshes when changed
 
@@ -106,11 +113,11 @@ First 5 tabs after opening load nearly instantly with zero visible loading scree
 Includes intelligent retry logic with request throttling:
 - **Automatic Retries**: If an image fails to load (broken URL, CORS issue, deleted content), automatically tries the next image
 - **Up to 3 Attempts**: Retries up to 3 times to handle transient failures
-- **Race Condition Prevention**: 400ms cooldown between successful loads prevents overlapping requests
+- **Request Throttling**: 400ms cooldown between successful loads prevents overlapping requests
 - **Lock-Based Throttling**: Only one image can load at a time, released when image actually completes
-- **Visual Feedback**: Loading spinner appears during throttle periods for user awareness
+- **Visual Feedback**: Loading spinner replaces refresh icon during active loading or throttling
 - **Format Validation**: Only loads static images (.jpg, .jpeg, .png, .webp), blocks GIFs and videos
-- **Smart Error Messages**: Only shows error if multiple consecutive images fail
+- **Smart Error Messages**: Context-aware error messages with accurate, actionable guidance
 
 ### Image Extraction
 
@@ -157,9 +164,10 @@ All extracted images include:
 - **Smart Preloading**: Selective background preloading of slower images only
 - **Error Handling**: Automatic retry mechanism with up to 3 attempts for failed image loads
 - **Request Throttling**: 400ms cooldown with visual feedback to prevent race conditions
-- **Comprehensive Logging**: Structured debug logging for development and troubleshooting
+- **Image Format Validation**: Ensures only static image formats are loaded, filtering out GIFs and videos
+- **Comprehensive Logging**: Structured logging system for easy debugging and monitoring
 - **State Management**: Uses Browser Storage API (sync for settings, local for cache)
-- **User-Friendly Messages**: Context-aware error messages with actionable suggestions
+- **Refined Error Messages**: Accurate, tonally consistent error messages with specific actionable guidance
 - **Customizable Clock**: Draggable positioning with persistent storage and format toggle (12/24 hour)
 
 ### Technologies
@@ -221,16 +229,17 @@ All extracted images include:
 - **Touch Targets**: Minimum 36×36px interactive elements (exceeds 44px iOS recommendation)
 
 #### Interactive Elements
-- **Refresh Button**: Manual image refresh with animated icon rotation on hover
-- **Loading Indicator**: Subtle spinner appears during image loads (same position as refresh button)
+- **Refresh Button**: Manual image refresh with animated icon rotation on hover. During loading or throttling, the refresh icon is replaced by a spinner
+- **Blur Toggle**: Button to apply a subtle blur filter to the background image for better text readability. Highlights when active
+- **NSFW Toggle**: Button to enable/disable NSFW content filtering. Highlights when active
+- **Info Tooltip**: Persistent tooltip showing image information, keyboard shortcuts, and settings. Toggled by clicking the info icon or pressing `I` or `?`
 - **Subreddit Input**: Inline editable field with hover/focus states
 - **Post Title Link**: Clickable title to view original Reddit post
-- **Error Messages**: Color-coded red text with user-friendly descriptions
+- **Error Messages**: Context-aware, tonally consistent error messages with accurate guidance
 - **Draggable Clock**: Click and drag to reposition anywhere on screen, persists across sessions
 - **Clock Reset**: Double-click clock to return to default center position
 - **Time Format Toggle**: Click time to switch between 12-hour and 24-hour formats
-- **Keyboard Shortcuts**: N/→ for next image, S/slash to focus subreddit, Escape to unfocus
-- **Keyboard Help Tooltip**: Persistent tooltip showing image info, shortcuts, and settings (click ⌨️ icon)
+- **Keyboard Shortcuts**: `N` or `→` for next image, `S` or `/` to focus subreddit, `I` or `?` to toggle info menu, `B` to toggle blur, `Shift+N` to toggle NSFW, `Esc` to close menu/unfocus input
 
 #### Responsive Behavior
 - **Desktop**: Horizontal info bar with all elements in one row
@@ -248,7 +257,7 @@ All extracted images include:
 
 ### Key Features
 
-- **Image Format Support**: Direct links, Reddit-hosted (i.redd.it), galleries (all images), previews
+- **Image Format Support**: Direct links, Reddit-hosted (i.redd.it), galleries (all images), previews. Only static images (.jpg, .jpeg, .png, .webp) are loaded; GIFs and videos are filtered out
 - **Smart Filtering**: Automatically identifies and filters image-containing posts
 - **Efficient Caching**: Minimizes API calls while ensuring fresh content
 - **Gallery Extraction**: Extracts all images from gallery posts with position labels
@@ -258,21 +267,21 @@ All extracted images include:
 - **Manual Refresh**: One-click button to load a new random image without refreshing the tab
 - **Draggable Clock**: Reposition clock anywhere with drag, double-click to reset
 - **Time Format Toggle**: Click time to switch between 12-hour (6:45 PM) and 24-hour (18:45) format
-- **Keyboard Shortcuts**: N/→ for next image, S/slash to focus input, Escape to unfocus
-- **NSFW Filtering**: Safe by default, optional toggle in keyboard shortcuts menu
-- **Image Info Display**: Shows resolution, score, post age, and author in persistent tooltip
-- **Persistent Preferences**: Clock position, time format, NSFW setting, and tooltip visibility saved across sessions
-- **Request Throttling**: 500ms cooldown between image loads to prevent race conditions
+- **Keyboard Shortcuts**: Comprehensive shortcuts for navigation, input, settings, and info
+- **NSFW Filtering**: Safe by default, optional toggle in UI button or keyboard shortcut
+- **Image Info Display**: Shows resolution, score, post age, and author in persistent info tooltip
+- **Blur Toggle**: Applies a subtle background blur for improved text readability, with persistent state
+- **Request Throttling**: 400ms cooldown between image loads to prevent race conditions
+- **Persistent Preferences**: Clock position, time format, NSFW setting, blur setting, and tooltip visibility saved across sessions
+- **Refined Error Messages**: Accurate, tonally consistent messages with specific actionable guidance
 - **Responsive UI**: Adaptive layout for mobile and desktop with fluid typography
 - **Accessibility**: WCAG 2.1 AA compliant with ARIA labels, keyboard navigation, and motion preferences
 - **Performance**: Background preloading, CSS transitions with will-change, crossfade animations
-- **Error Styling**: Red-colored error messages for immediate visibility
-- **Context-Aware Errors**: Specific error messages based on failure type (404, 403, network, etc.)
 - **Modern Design**: Glassmorphism with backdrop blur, smooth transitions, and visual depth
 
 ### Storage
 
-- **Sync Storage**: User preferences (subreddit name, clock position, time format, NSFW filter, tooltip visibility)
+- **Sync Storage**: User preferences (subreddit name, clock position, time format, NSFW filter, blur setting, tooltip visibility)
 - **Local Storage**: Image cache with metadata
   - Image URLs, titles, and permalinks
   - CDN priority scores for each image
