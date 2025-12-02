@@ -360,6 +360,53 @@ body {
   text-align: right;
 }
 
+.tooltip-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 8px 0;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 6px 0;
+  opacity: 0.9;
+  transition: opacity 0.2s ease;
+}
+
+.setting-item:hover {
+  opacity: 1;
+}
+
+.setting-item input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.setting-item span {
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.setting-item kbd {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  margin-left: auto;
+}
+
 #loading-indicator {
   display: flex;
   align-items: center;

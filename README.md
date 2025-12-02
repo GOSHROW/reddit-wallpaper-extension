@@ -50,9 +50,16 @@ Shows a different image each time you open a new tab.
 
 **Keyboard shortcuts:**
 - `Space` or `N` - Load next image (same as refresh button)
+- `Shift + N` - Toggle NSFW content filter
 - `S` - Focus subreddit input field
 - `Escape` - Unfocus subreddit input
 - Simple, discoverable shortcuts for power users
+
+**NSFW filtering:**
+- NSFW content filtered by default (safe for work)
+- Toggle "Allow NSFW" in keyboard shortcuts menu (⌨️ icon)
+- Setting persists across sessions
+- Cache automatically refreshes when changed
 
 **Good subreddits to try:**
 - CineShots (movie screenshots)
@@ -139,6 +146,7 @@ All extracted images include CDN priority scoring for optimal loading performanc
 - **Cross-Browser Support**: Compatible with Chrome, Firefox, Edge, Brave, Opera
 - **Caching Strategy**: Batch fetching (50 posts) with automatic refill when cache drops below 5 images
 - **Gallery Support**: Extracts all images from gallery posts (not just the first one)
+- **NSFW Filtering**: Filters NSFW posts by default with optional user toggle
 - **CDN Prioritization**: Images sorted by source reliability (i.redd.it → imgur → external)
 - **Smart Preloading**: Selective background preloading of slower images only
 - **Error Handling**: Automatic retry mechanism with up to 3 attempts for failed image loads
@@ -242,7 +250,8 @@ All extracted images include CDN priority scoring for optimal loading performanc
 - **Draggable Clock**: Reposition clock anywhere with drag, double-click to reset
 - **Time Format Toggle**: Click time to switch between 12-hour (6:45 PM) and 24-hour (18:45) format
 - **Keyboard Shortcuts**: Space/N for next image, S to focus input, Escape to unfocus
-- **Persistent Preferences**: Clock position and time format saved across sessions
+- **NSFW Filtering**: Safe by default, optional toggle in keyboard shortcuts menu
+- **Persistent Preferences**: Clock position, time format, and NSFW setting saved across sessions
 - **Responsive UI**: Adaptive layout for mobile and desktop with fluid typography
 - **Accessibility**: WCAG 2.1 AA compliant with ARIA labels, keyboard navigation, and motion preferences
 - **Performance**: Background preloading, CSS transitions with will-change, crossfade animations
@@ -252,7 +261,7 @@ All extracted images include CDN priority scoring for optimal loading performanc
 
 ### Storage
 
-- **Sync Storage**: User preferences (subreddit name, clock position, time format)
+- **Sync Storage**: User preferences (subreddit name, clock position, time format, NSFW filter)
 - **Local Storage**: Image cache with metadata
   - Image URLs, titles, and permalinks
   - CDN priority scores for each image

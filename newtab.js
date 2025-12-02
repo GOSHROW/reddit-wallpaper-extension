@@ -164,10 +164,10 @@ const RedditAPI = {
     return `Can't connect to Reddit. Check your internet connection`;
   },
 
-  filterImagePosts(posts) {
+  filterImagePosts(posts, allowNSFW = false) {
     return posts.filter(post => {
       const data = post.data;
-      if (data.is_self) return false;
+      if (data.is_self || (!allowNSFW && data.over_18)) return false;
 
       const url = data.url?.toLowerCase() || '';
       const hasImageIndicator = CONFIG.IMAGE_INDICATORS.some(indicator => url.includes(indicator));
@@ -217,8 +217,9 @@ const ImageCache = {
     const posts = await RedditAPI.fetchPosts(subreddit);
     this.validatePosts(posts, subreddit);
     
-    const imagePosts = RedditAPI.filterImagePosts(posts);
-    this.validateImagePosts(imagePosts, subreddit);
+    const { allowNSFW } = await Storage.get(['allowNSFW'], { allowNSFW: false });
+    const imagePosts = RedditAPI.filterImagePosts(posts, allowNSFW);
+    this.validateImagePosts(imagePosts, subreddit, allowNSFW);
     
     const images = RedditAPI.extractImages(imagePosts);
     this.validateImages(images, subreddit);
@@ -231,9 +232,7 @@ const ImageCache = {
       cacheTimestamp: Date.now() 
     });
     
-    console.log(`✓ Cached ${sorted.length} images from r/${subreddit}`);
     this.preloadImages(sorted.slice(0, CONFIG.PRELOAD_COUNT));
-    
     return sorted;
   },
 
@@ -243,8 +242,11 @@ const ImageCache = {
     }
   },
 
-  validateImagePosts(imagePosts, subreddit) {
+  validateImagePosts(imagePosts, subreddit, allowNSFW) {
     if (imagePosts.length === 0) {
+      if (!allowNSFW) {
+        throw new Error(`r/${subreddit} may contain only NSFW content. Enable "Allow NSFW" in ⌨️ settings or try "CineShots"`);
+      }
       throw new Error(`r/${subreddit} has no image posts. Try "wallpapers" or "spaceporn"`);
     }
   },
@@ -492,7 +494,31 @@ const UI = {
   initKeyboardTooltip() {
     const helpButton = this.elements.keyboardHelp;
     const tooltip = this.elements.keyboardTooltip;
+    const nsfwToggle = document.getElementById('allow-nsfw-toggle');
     let isTooltipVisible = false;
+
+    Storage.get(['allowNSFW'], { allowNSFW: false }).then(({ allowNSFW }) => {
+      nsfwToggle.checked = allowNSFW;
+    });
+
+    nsfwToggle.addEventListener('change', async () => {
+      await Storage.set({ allowNSFW: nsfwToggle.checked });
+      await ImageCache.clear();
+      
+      const currentSubreddit = UI.getSubreddit();
+      try {
+        await ImageCache.fetch(currentSubreddit);
+        const { imageCache } = await Storage.getLocal(['imageCache']);
+        if (imageCache?.length > 0) {
+          const image = imageCache[0];
+          UI.setBackgroundImage(image.imageUrl, image.title, image.permalink, 
+            () => App.loadImage(false, 1));
+          await Storage.setLocal({ imageCache: imageCache.slice(1) });
+        }
+      } catch (error) {
+        UI.showError(error.message);
+      }
+    });
 
     const showTooltip = () => {
       tooltip.classList.remove('hidden');
@@ -504,31 +530,19 @@ const UI = {
       isTooltipVisible = false;
     };
 
-    const toggleTooltip = (e) => {
+    helpButton.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (isTooltipVisible) {
-        hideTooltip();
-      } else {
-        showTooltip();
-      }
-    };
+      isTooltipVisible ? hideTooltip() : showTooltip();
+    });
 
-    helpButton.addEventListener('click', toggleTooltip);
-
-    // Hide tooltip when clicking outside
     document.addEventListener('click', (e) => {
-      if (isTooltipVisible && 
-          !tooltip.contains(e.target) && 
-          !helpButton.contains(e.target)) {
+      if (isTooltipVisible && !tooltip.contains(e.target) && !helpButton.contains(e.target)) {
         hideTooltip();
       }
     });
 
-    // Hide tooltip on Escape key
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && isTooltipVisible) {
-        hideTooltip();
-      }
+      if (e.key === 'Escape' && isTooltipVisible) hideTooltip();
     });
   },
 
@@ -702,20 +716,23 @@ const App = {
       const target = e.target;
       const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
 
-      // Space or N - Load next image (only when input not focused)
       if (!isInputFocused && (e.code === 'Space' || e.key === 'n' || e.key === 'N')) {
-        e.preventDefault();
-        this.loadImage(false);
+        if (e.shiftKey && e.key === 'N') {
+          e.preventDefault();
+          const nsfwToggle = document.getElementById('allow-nsfw-toggle');
+          nsfwToggle.click();
+        } else {
+          e.preventDefault();
+          this.loadImage(false);
+        }
       }
 
-      // S - Focus subreddit input (only when input not focused)
       if (!isInputFocused && (e.key === 's' || e.key === 'S')) {
         e.preventDefault();
         UI.elements.subredditInput.focus();
         UI.elements.subredditInput.select();
       }
 
-      // Escape - Blur/unfocus subreddit input
       if (e.key === 'Escape') {
         if (isInputFocused) {
           UI.elements.subredditInput.blur();
