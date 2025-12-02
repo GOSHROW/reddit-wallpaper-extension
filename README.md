@@ -4,7 +4,7 @@ A browser extension that replaces your new tab page with images from Reddit.
 
 Works on Chrome, Firefox, Edge, Brave, Opera, and other Chromium-based browsers.
 
-![Screenshot from v1.1.2](resources/screenshot.png)
+![Screenshot from v1.3.0](resources/screenshot.png)
 *Screenshot shows version 1.3.0 of the extension*
 
 ## Installation
