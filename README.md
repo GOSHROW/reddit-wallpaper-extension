@@ -11,6 +11,7 @@ Works on Chrome, Firefox, Edge, Brave, Opera, and other Chromium-based browsers.
 
 - **Beautiful wallpapers** from any subreddit (defaults to CineShots)
 - **Smart caching** - first load ~1s, then 45+ tabs load instantly
+- **Smart aspect ratio** - fill display (crops edges) or fit image (with blurred background)
 - **NSFW filtering** - safe by default with optional toggle
 - **Keyboard shortcuts** - navigate efficiently without mouse
 - **Draggable clock** - reposition anywhere, 12/24-hour format toggle
@@ -57,6 +58,7 @@ Works on Chrome, Firefox, Edge, Brave, Opera, and other Chromium-based browsers.
 | `S` or `/` | Focus subreddit input |
 | `I` or `?` | Toggle info & shortcuts menu |
 | `B` | Toggle background blur |
+| `F` | Toggle display mode (fill/fit) |
 | `Shift+N` | Toggle NSFW filter |
 | `Esc` | Close menu / Unfocus input |
 
@@ -71,6 +73,14 @@ Works on Chrome, Firefox, Edge, Brave, Opera, and other Chromium-based browsers.
 
 - Click eye icon (👁️) to toggle subtle blur on background
 - Improves text readability on busy images
+- Setting persists across sessions
+
+### Display Mode
+
+- **Fill** (default): Fills viewport by cropping image edges - traditional wallpaper style
+- **Fit**: Shows full image with blurred background filling letterbox areas - artistic effect
+- Click display mode button or press `F` to switch
+- Fill works best for landscapes, Fit preserves portraits and unusual aspect ratios
 - Setting persists across sessions
 
 ### Recommended Subreddits

@@ -401,6 +401,7 @@ const UI = {
       keyboardTooltip: document.getElementById('keyboard-tooltip'),
       blurToggle: document.getElementById('blur-toggle'),
       nsfwToggle: document.getElementById('nsfw-toggle'),
+      fullscreenToggle: document.getElementById('fullscreen-toggle'),
       infoResolution: document.getElementById('info-resolution'),
       infoScore: document.getElementById('info-score'),
       infoAge: document.getElementById('info-age'),
@@ -419,6 +420,7 @@ const UI = {
     this.initKeyboardTooltip();
     this.initBlurToggle();
     this.initNsfwToggle();
+    this.initFullscreenToggle();
   },
 
   initClockDrag() {
@@ -731,6 +733,50 @@ const UI = {
     });
   },
 
+  initFullscreenToggle() {
+    const fullscreenToggle = this.elements.fullscreenToggle;
+    const fullscreenCheckbox = document.getElementById('fullscreen-toggle-checkbox');
+    const backgroundContainer = this.elements.backgroundContainer;
+    const fullscreenOffIcon = fullscreenToggle.querySelector('.fullscreen-off');
+    const fullscreenOnIcon = fullscreenToggle.querySelector('.fullscreen-on');
+    
+    const setFullscreenState = (isFullscreen) => {
+      if (isFullscreen) {
+        backgroundContainer.classList.add('fullscreen');
+        fullscreenToggle.classList.add('active');
+        fullscreenToggle.setAttribute('title', 'Display mode: Fill');
+        fullscreenCheckbox.checked = true;
+        fullscreenOffIcon.classList.add('hidden');
+        fullscreenOnIcon.classList.remove('hidden');
+      } else {
+        backgroundContainer.classList.remove('fullscreen');
+        fullscreenToggle.classList.remove('active');
+        fullscreenToggle.setAttribute('title', 'Display mode: Fit');
+        fullscreenCheckbox.checked = false;
+        fullscreenOffIcon.classList.remove('hidden');
+        fullscreenOnIcon.classList.add('hidden');
+      }
+    };
+    
+    Storage.get(['isFullscreen'], { isFullscreen: true }).then(({ isFullscreen }) => {
+      setFullscreenState(isFullscreen);
+    });
+    
+    const toggleFullscreen = async () => {
+      const isFullscreen = backgroundContainer.classList.contains('fullscreen');
+      setFullscreenState(!isFullscreen);
+      await Storage.set({ isFullscreen: !isFullscreen });
+      Logger.info('UI', `Display mode: ${!isFullscreen ? 'Fill' : 'Fit'}`);
+    };
+    
+    fullscreenToggle.addEventListener('click', toggleFullscreen);
+    fullscreenCheckbox.addEventListener('change', async () => {
+      setFullscreenState(fullscreenCheckbox.checked);
+      await Storage.set({ isFullscreen: fullscreenCheckbox.checked });
+      Logger.info('UI', `Display mode: ${fullscreenCheckbox.checked ? 'Fill' : 'Fit'}`);
+    });
+  },
+
   setBackgroundImage(imageUrl, title, permalink, onSuccess, onError) {
     const { backgroundLayer1, backgroundLayer2, refreshButton, postTitle } = this.elements;
     const img = new Image();
@@ -749,8 +795,15 @@ const UI = {
       
       Logger.success('UI', `Layer ${this.currentLayer} → ${this.currentLayer === 1 ? 2 : 1}`);
       
-      newLayer.style.backgroundImage = `url('${imageUrl}')`;
-      oldLayer.style.backgroundImage = 'none';
+      const bgBlur = newLayer.querySelector('.bg-blur');
+      const bgMain = newLayer.querySelector('.bg-main');
+      const oldBgBlur = oldLayer.querySelector('.bg-blur');
+      const oldBgMain = oldLayer.querySelector('.bg-main');
+      
+      bgBlur.style.backgroundImage = `url('${imageUrl}')`;
+      bgMain.style.backgroundImage = `url('${imageUrl}')`;
+      oldBgBlur.style.backgroundImage = 'none';
+      oldBgMain.style.backgroundImage = 'none';
       newLayer.style.opacity = '1';
       oldLayer.style.opacity = '0';
       
@@ -814,8 +867,16 @@ const UI = {
 
   clearBackground() {
     const { backgroundLayer1, backgroundLayer2, postTitle } = this.elements;
-    backgroundLayer1.style.backgroundImage = 'none';
-    backgroundLayer2.style.backgroundImage = 'none';
+    
+    const bgBlur1 = backgroundLayer1.querySelector('.bg-blur');
+    const bgMain1 = backgroundLayer1.querySelector('.bg-main');
+    const bgBlur2 = backgroundLayer2.querySelector('.bg-blur');
+    const bgMain2 = backgroundLayer2.querySelector('.bg-main');
+    
+    bgBlur1.style.backgroundImage = 'none';
+    bgMain1.style.backgroundImage = 'none';
+    bgBlur2.style.backgroundImage = 'none';
+    bgMain2.style.backgroundImage = 'none';
     backgroundLayer1.style.opacity = '0';
     backgroundLayer2.style.opacity = '0';
     postTitle.textContent = 'NSFW content filtered';
@@ -956,7 +1017,13 @@ const App = {
         UI.elements.blurToggle.click();
       }
 
-      // Toggle help/info: ? or I
+      // Toggle fullscreen: F
+      if (!isInputFocused && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault();
+        UI.elements.fullscreenToggle.click();
+      }
+
+      // Show keyboard help: ? or I
       if (!isInputFocused && (e.key === '?' || e.key === 'i' || e.key === 'I')) {
         e.preventDefault();
         UI.elements.keyboardHelp.click();
