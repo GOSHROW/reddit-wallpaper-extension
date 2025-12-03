@@ -126,7 +126,8 @@ const ImageExtractor = {
       cdnPriority: this.getCDNPriority(imageUrl),
       author: postData?.author,
       score: postData?.score,
-      created: postData?.created_utc
+      created: postData?.created_utc,
+      isNSFW: postData?.over_18 || false
     };
   },
 
@@ -302,7 +303,7 @@ const ImageCache = {
   validateImagePosts(imagePosts, subreddit, allowNSFW) {
     if (imagePosts.length === 0) {
       if (!allowNSFW) {
-        throw new Error(`r/${subreddit} contains only NSFW content. Enable "Allow NSFW" in settings or try "CineShots"`);
+        throw new Error(`r/${subreddit} contains only NSFW content. Enable "Show NSFW Content" in settings or try "CineShots"`);
       }
       throw new Error(`r/${subreddit} has no image posts. Try "wallpapers" or "spaceporn"`);
     }
@@ -629,16 +630,24 @@ const UI = {
     const blurToggle = this.elements.blurToggle;
     const blurCheckbox = document.getElementById('blur-toggle-checkbox');
     const backgroundContainer = this.elements.backgroundContainer;
+    const blurOffIcon = blurToggle.querySelector('.blur-off');
+    const blurOnIcon = blurToggle.querySelector('.blur-on');
     
     const setBlurState = (isBlurred) => {
       if (isBlurred) {
         backgroundContainer.classList.add('blurred');
         blurToggle.classList.add('active');
+        blurToggle.setAttribute('title', 'Background blur on');
         blurCheckbox.checked = true;
+        blurOffIcon.classList.add('hidden');
+        blurOnIcon.classList.remove('hidden');
       } else {
         backgroundContainer.classList.remove('blurred');
         blurToggle.classList.remove('active');
+        blurToggle.setAttribute('title', 'Background blur off');
         blurCheckbox.checked = false;
+        blurOffIcon.classList.remove('hidden');
+        blurOnIcon.classList.add('hidden');
       }
     };
     
@@ -660,19 +669,32 @@ const UI = {
   initNsfwToggle() {
     const nsfwToggleButton = this.elements.nsfwToggle;
     const nsfwCheckbox = document.getElementById('allow-nsfw-toggle');
+    const nsfwLockedIcon = nsfwToggleButton.querySelector('.nsfw-locked');
+    const nsfwUnlockedIcon = nsfwToggleButton.querySelector('.nsfw-unlocked');
     
     const setNsfwState = (allowNSFW) => {
       if (allowNSFW) {
         nsfwToggleButton.classList.add('active');
+        nsfwToggleButton.setAttribute('title', 'NSFW content allowed');
         nsfwCheckbox.checked = true;
+        nsfwLockedIcon.classList.add('hidden');
+        nsfwUnlockedIcon.classList.remove('hidden');
       } else {
         nsfwToggleButton.classList.remove('active');
+        nsfwToggleButton.setAttribute('title', 'NSFW content filtered');
         nsfwCheckbox.checked = false;
+        nsfwLockedIcon.classList.remove('hidden');
+        nsfwUnlockedIcon.classList.add('hidden');
       }
     };
     
     Storage.get(['allowNSFW'], { allowNSFW: false }).then(({ allowNSFW }) => {
       setNsfwState(allowNSFW);
+      
+      if (!allowNSFW && UI.currentImageData?.isNSFW) {
+        Logger.info('UI', 'NSFW image detected with filter ON, clearing');
+        UI.clearBackground();
+      }
     });
     
     const toggleNsfw = async () => {
@@ -680,6 +702,17 @@ const UI = {
       const newState = !currentState;
       setNsfwState(newState);
       await Storage.set({ allowNSFW: newState });
+      
+      Logger.debug('UI', 'NSFW toggle', { 
+        newState, 
+        hasCurrentImage: !!UI.currentImageData,
+        currentImageNSFW: UI.currentImageData?.isNSFW 
+      });
+      
+      if (!newState && UI.currentImageData?.isNSFW) {
+        UI.clearBackground();
+      }
+      
       await ImageCache.clear();
       Logger.info('UI', `NSFW filter: ${newState ? 'OFF' : 'ON'}`);
     };
@@ -688,6 +721,11 @@ const UI = {
     nsfwCheckbox.addEventListener('change', async () => {
       setNsfwState(nsfwCheckbox.checked);
       await Storage.set({ allowNSFW: nsfwCheckbox.checked });
+      
+      if (!nsfwCheckbox.checked && UI.currentImageData?.isNSFW) {
+        UI.clearBackground();
+      }
+      
       await ImageCache.clear();
       Logger.info('UI', `NSFW filter: ${nsfwCheckbox.checked ? 'OFF' : 'ON'}`);
     });
@@ -774,6 +812,16 @@ const UI = {
     this.elements.postTitle.classList.remove('error');
   },
 
+  clearBackground() {
+    const { backgroundLayer1, backgroundLayer2, postTitle } = this.elements;
+    backgroundLayer1.style.backgroundImage = 'none';
+    backgroundLayer2.style.backgroundImage = 'none';
+    backgroundLayer1.style.opacity = '0';
+    backgroundLayer2.style.opacity = '0';
+    postTitle.textContent = 'NSFW content filtered';
+    this.clearError();
+  },
+
   setSubreddit(subreddit) {
     this.elements.subredditInput.value = subreddit;
   },
@@ -841,6 +889,8 @@ const App = {
       
       UI.setBackgroundImage(image.imageUrl, image.title, image.permalink, onSuccess, onError);
       UI.updateImageInfo(image);
+      UI.currentImageData = image;
+      Logger.debug('App', 'Current image data stored', { isNSFW: image.isNSFW, title: image.title.substring(0, 50) });
     } catch (error) {
       Logger.error('App', 'Failed to load image', error);
       UI.showError(error.message);
