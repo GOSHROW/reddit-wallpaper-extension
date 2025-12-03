@@ -184,7 +184,21 @@ const ImageExtractor = {
 };
 
 const RedditAPI = {
+  MIN_API_INTERVAL: 1000,
+
   async fetchPosts(subreddit) {
+    const { lastApiCall = 0 } = await Storage.getLocal(['lastApiCall']);
+    const now = Date.now();
+    const timeSinceLastCall = now - lastApiCall;
+    
+    if (timeSinceLastCall < this.MIN_API_INTERVAL) {
+      const waitTime = this.MIN_API_INTERVAL - timeSinceLastCall;
+      Logger.warn('RedditAPI', `Cross-tab throttled (${waitTime}ms)`, { subreddit });
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    
+    await Storage.setLocal({ lastApiCall: Date.now() });
+    
     Logger.info('RedditAPI', `Fetching from r/${subreddit}`);
     const url = `${CONFIG.REDDIT_API_BASE}/r/${subreddit}/new.json?limit=${CONFIG.DEFAULT_POST_LIMIT}`;
     
@@ -217,22 +231,31 @@ const RedditAPI = {
   },
 
   filterImagePosts(posts, allowNSFW = false) {
+    let allImageCount = 0;
     const filtered = posts.filter(post => {
       const data = post.data;
-      if (data.is_self || (!allowNSFW && data.over_18)) return false;
+      if (data.is_self) return false;
 
       const url = data.url?.toLowerCase() || '';
       const hasImageIndicator = CONFIG.IMAGE_INDICATORS.some(indicator => url.includes(indicator));
       
-      return hasImageIndicator || 
-             data.domain === 'i.redd.it' || 
-             data.post_hint === 'image' || 
-             data.is_gallery || 
-             data.preview?.images;
+      const isImage = hasImageIndicator || 
+                      data.domain === 'i.redd.it' || 
+                      data.post_hint === 'image' || 
+                      data.is_gallery || 
+                      data.preview?.images;
+      
+      if (!isImage) return false;
+      
+      allImageCount++;
+      
+      if (!allowNSFW && data.over_18) return false;
+      
+      return true;
     });
     
-    Logger.info('RedditAPI', `Filtered to ${filtered.length} image posts (NSFW: ${allowNSFW})`);
-    return filtered;
+    Logger.info('RedditAPI', `Filtered to ${filtered.length}/${allImageCount} image posts (NSFW: ${allowNSFW})`);
+    return { filtered, allImageCount };
   },
 
   extractImages(posts) {
@@ -275,8 +298,8 @@ const ImageCache = {
     this.validatePosts(posts, subreddit);
     
     const { allowNSFW } = await Storage.get(['allowNSFW'], { allowNSFW: false });
-    const imagePosts = RedditAPI.filterImagePosts(posts, allowNSFW);
-    this.validateImagePosts(imagePosts, subreddit, allowNSFW);
+    const { filtered: imagePosts, allImageCount } = RedditAPI.filterImagePosts(posts, allowNSFW);
+    this.validateImagePosts(imagePosts, subreddit, allowNSFW, allImageCount);
     
     const images = RedditAPI.extractImages(imagePosts);
     this.validateImages(images, subreddit);
@@ -300,9 +323,9 @@ const ImageCache = {
     }
   },
 
-  validateImagePosts(imagePosts, subreddit, allowNSFW) {
+  validateImagePosts(imagePosts, subreddit, allowNSFW, allImageCount) {
     if (imagePosts.length === 0) {
-      if (!allowNSFW) {
+      if (!allowNSFW && allImageCount > 0) {
         throw new Error(`r/${subreddit} contains only NSFW content. Enable "Show NSFW Content" in settings or try "CineShots"`);
       }
       throw new Error(`r/${subreddit} has no image posts. Try "wallpapers" or "spaceporn"`);

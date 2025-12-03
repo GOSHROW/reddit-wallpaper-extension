@@ -118,10 +118,12 @@ Within each tier, images are randomized for variety.
 ### Smart Loading
 
 - **Selective preloading**: Only preloads slower external images
-- **Request throttling**: 400ms cooldown prevents overlapping loads
+- **In-page throttling**: 400ms cooldown prevents rapid UI switches
+- **Cross-tab throttling**: 1-second global API rate limit across all tabs
 - **Format validation**: Blocks GIFs and videos (only .jpg, .jpeg, .png, .webp)
 - **Auto-retry**: Up to 3 attempts for failed loads
 - **Visual feedback**: Spinner shows loading state
+- **Smart error detection**: Optimized single-pass filtering distinguishes between missing images and NSFW-only content
 
 ### Image Extraction
 
@@ -154,6 +156,8 @@ Supports multiple Reddit post formats:
 
 ### Performance
 
+- **Dual-layer throttling**: In-page (400ms) + cross-tab (1000ms) prevents API abuse
+- **Single-pass filtering**: Optimized image detection counts all images in one iteration
 - **Bandwidth savings**: Skips preloading fast CDNs (~3-4MB saved per session)
 - **Efficient caching**: ~15KB storage for 50 image URLs
 - **Browser-managed images**: ~5-10MB temporary memory

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Reddit Wallpaper New Tab",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Transform your new tab with stunning images from Reddit. Fast, beautiful, and customizable.",
   "author": "Goshrow",
   "permissions": [
