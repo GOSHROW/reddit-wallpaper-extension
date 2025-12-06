@@ -31,6 +31,7 @@ const CONFIG = {
   CACHE_MIN_THRESHOLD: 5,
   PRELOAD_COUNT: 5,
   PRELOAD_PRIORITY_THRESHOLD: 85,
+  MAX_FAVORITES: 500,
   IMAGE_INDICATORS: ['.jpg', '.jpeg', '.png', '.gif', 'i.redd.it', 'i.imgur.com'],
   ALLOWED_IMAGE_FORMATS: ['.jpg', '.jpeg', '.png', '.webp'],
   BLOCKED_FORMATS: ['.gifv', '.mp4', '.webm', '.mov', 'v.redd.it', 'gfycat.com', 'redgifs.com'],
@@ -72,6 +73,67 @@ const Settings = {
 
   async save(subreddit) {
     return Storage.set({ subreddit });
+  }
+};
+
+const Favorites = {
+  async add(imageData) {
+    const { favorites = [] } = await Storage.getLocal(['favorites']);
+    
+    const existingUrl = imageData.imageUrl || imageData.url;
+    if (favorites.some(f => (f.imageUrl || f.url) === existingUrl)) {
+      Logger.info('Favorites', 'Already favorited');
+      return favorites.length;
+    }
+    
+    if (favorites.length >= CONFIG.MAX_FAVORITES) {
+      Logger.warn('Favorites', `Limit reached (${CONFIG.MAX_FAVORITES})`);
+      throw new Error(`Maximum ${CONFIG.MAX_FAVORITES} favorites reached. Remove some to add more`);
+    }
+    
+    const favorite = {
+      imageUrl: imageData.imageUrl || imageData.url,
+      url: imageData.imageUrl || imageData.url,
+      title: imageData.title,
+      permalink: imageData.permalink,
+      author: imageData.author,
+      score: imageData.score,
+      created: imageData.created,
+      isNSFW: imageData.isNSFW || false,
+      timestamp: Date.now()
+    };
+    
+    favorites.push(favorite);
+    await Storage.setLocal({ favorites });
+    Logger.success('Favorites', `Added (${favorites.length}/${CONFIG.MAX_FAVORITES})`);
+    return favorites.length;
+  },
+
+  async remove(imageUrl) {
+    const { favorites = [] } = await Storage.getLocal(['favorites']);
+    const filtered = favorites.filter(f => (f.imageUrl || f.url) !== imageUrl);
+    await Storage.setLocal({ favorites: filtered });
+    Logger.info('Favorites', `Removed (${filtered.length} total)`);
+    return filtered.length;
+  },
+
+  async getAll() {
+    const { favorites = [] } = await Storage.getLocal(['favorites']);
+    const { allowNSFW } = await Storage.get(['allowNSFW'], { allowNSFW: false });
+    
+    const filtered = allowNSFW ? favorites : favorites.filter(f => !f.isNSFW);
+    Logger.info('Favorites', `Retrieved ${filtered.length} favorites (NSFW: ${allowNSFW ? 'allowed' : 'filtered'})`);
+    return filtered;
+  },
+
+  async isFavorite(imageUrl) {
+    const { favorites = [] } = await Storage.getLocal(['favorites']);
+    return favorites.some(f => (f.imageUrl || f.url) === imageUrl);
+  },
+
+  async clear() {
+    await Storage.setLocal({ favorites: [] });
+    Logger.info('Favorites', 'Cleared all favorites');
   }
 };
 
@@ -420,6 +482,8 @@ const UI = {
       backgroundLayer1: document.getElementById('background-layer-1'),
       backgroundLayer2: document.getElementById('background-layer-2'),
       refreshButton: document.getElementById('refresh-button'),
+      heartButton: document.getElementById('heart-button'),
+      favoritesButton: document.getElementById('favorites-button'),
       keyboardHelp: document.getElementById('keyboard-help'),
       keyboardTooltip: document.getElementById('keyboard-tooltip'),
       blurToggle: document.getElementById('blur-toggle'),
@@ -443,6 +507,7 @@ const UI = {
     this.initKeyboardTooltip();
     this.initBlurToggle();
     this.initNsfwToggle();
+    this.initHeartButton();
     this.initFullscreenToggle();
   },
 
@@ -597,6 +662,27 @@ const UI = {
         await Storage.set({ tooltipVisible: true });
       }
     });
+  },
+
+  updateTooltipForMode(viewMode) {
+    const nextShortcut = document.getElementById('shortcut-next');
+    const viewShortcut = document.getElementById('shortcut-view');
+    const subredditShortcut = document.getElementById('shortcut-subreddit');
+    const scoreLabel = document.getElementById('score-label');
+    
+    if (viewMode === 'favorites') {
+      nextShortcut.querySelector('span').textContent = 'Next favorite';
+      viewShortcut.querySelector('span').textContent = 'Back to Reddit';
+      subredditShortcut.style.opacity = '0.4';
+      subredditShortcut.style.textDecoration = 'line-through';
+      scoreLabel.innerHTML = 'Score <span class="score-note">(saved)</span>';
+    } else {
+      nextShortcut.querySelector('span').textContent = 'Next image';
+      viewShortcut.querySelector('span').textContent = 'View favorites';
+      subredditShortcut.style.opacity = '1';
+      subredditShortcut.style.textDecoration = 'none';
+      scoreLabel.textContent = 'Score';
+    }
   },
 
   updateImageInfo(imageData) {
@@ -756,6 +842,76 @@ const UI = {
     });
   },
 
+  initHeartButton() {
+    const heartButton = this.elements.heartButton;
+    const heartOutline = heartButton.querySelector('.heart-outline');
+    const heartFilled = heartButton.querySelector('.heart-filled');
+    
+    if (!heartButton || !heartOutline || !heartFilled) {
+      Logger.error('UI', 'Heart button elements not found');
+      return;
+    }
+    
+    const updateHeartState = async () => {
+      const currentUrl = this.currentImageData?.imageUrl || this.currentImageData?.url;
+      if (!currentUrl) {
+        Logger.debug('UI', 'updateHeartState: No image data');
+        return;
+      }
+      
+      const isFav = await Favorites.isFavorite(currentUrl);
+      Logger.debug('UI', `Heart state: ${isFav ? 'favorited' : 'not favorited'}`);
+      
+      if (isFav) {
+        heartOutline.classList.add('hidden');
+        heartFilled.classList.remove('hidden');
+        heartButton.setAttribute('title', 'Remove from favorites');
+        heartButton.setAttribute('aria-label', 'Remove from favorites');
+      } else {
+        heartOutline.classList.remove('hidden');
+        heartFilled.classList.add('hidden');
+        heartButton.setAttribute('title', 'Add to favorites');
+        heartButton.setAttribute('aria-label', 'Add to favorites');
+      }
+    };
+    
+    heartButton.addEventListener('click', async () => {
+      const currentUrl = this.currentImageData?.imageUrl || this.currentImageData?.url;
+      if (!currentUrl) {
+        Logger.warn('UI', 'Heart click: No image data');
+        return;
+      }
+      
+      Logger.info('UI', 'Heart button clicked');
+      const isFav = await Favorites.isFavorite(currentUrl);
+      
+      if (isFav) {
+        await Favorites.remove(currentUrl);
+        heartOutline.classList.remove('hidden');
+        heartFilled.classList.add('hidden');
+        heartButton.setAttribute('title', 'Add to favorites');
+        heartButton.setAttribute('aria-label', 'Add to favorites');
+        Logger.success('UI', 'Removed from favorites');
+        if (window.App) App.updateFavoritesButtonTitle();
+      } else {
+        try {
+          await Favorites.add(this.currentImageData);
+          heartOutline.classList.add('hidden');
+          heartFilled.classList.remove('hidden');
+          heartButton.setAttribute('title', 'Remove from favorites');
+          heartButton.setAttribute('aria-label', 'Remove from favorites');
+          if (window.App) App.updateFavoritesButtonTitle();
+        } catch (error) {
+          Logger.error('UI', 'Failed to add favorite', error.message);
+          this.showError(error.message);
+        }
+      }
+    });
+    
+    this.updateHeartState = updateHeartState;
+    Logger.success('UI', 'Heart button initialized');
+  },
+
   initFullscreenToggle() {
     const fullscreenToggle = this.elements.fullscreenToggle;
     const fullscreenCheckbox = document.getElementById('fullscreen-toggle-checkbox');
@@ -839,6 +995,10 @@ const UI = {
       this.clearError();
       this.currentLayer = this.currentLayer === 1 ? 2 : 1;
       
+      if (this.updateHeartState) {
+        this.updateHeartState();
+      }
+      
       if (onSuccess) {
         onSuccess();
       }
@@ -921,6 +1081,9 @@ const App = {
   isLoadingImage: false,
   lastLoadTime: 0,
   minLoadInterval: 400,
+  viewMode: 'reddit',
+  favorites: [],
+  currentFavoriteIndex: 0,
 
   async loadImage(showLoading = false, retryCount = 0) {
     const now = Date.now();
@@ -973,8 +1136,7 @@ const App = {
       
       UI.setBackgroundImage(image.imageUrl, image.title, image.permalink, onSuccess, onError);
       UI.updateImageInfo(image);
-      UI.currentImageData = image;
-      Logger.debug('App', 'Current image data stored', { isNSFW: image.isNSFW, title: image.title.substring(0, 50) });
+      Logger.debug('App', 'Image data stored', { url: image.imageUrl.substring(0, 50), isNSFW: image.isNSFW });
     } catch (error) {
       Logger.error('App', 'Failed to load image', error);
       UI.showError(error.message);
@@ -995,6 +1157,97 @@ const App = {
     }
   },
 
+  async enterFavoritesMode() {
+    Logger.info('App', 'Entering favorites mode');
+    this.favorites = await Favorites.getAll();
+    
+    if (this.favorites.length === 0) {
+      UI.showError('No favorites yet. Press H to save images!');
+      setTimeout(() => {
+        this.exitFavoritesMode();
+      }, 2000);
+      return;
+    }
+    
+    this.viewMode = 'favorites';
+    this.currentFavoriteIndex = 0;
+    
+    UI.elements.subredditInput.parentElement.style.display = 'none';
+    UI.elements.favoritesButton.classList.add('active');
+    UI.elements.favoritesButton.setAttribute('title', `Back to Reddit (${this.favorites.length} favorites)`);
+    UI.updateTooltipForMode('favorites');
+    
+    this.loadCurrentFavorite();
+  },
+
+  exitFavoritesMode() {
+    Logger.info('App', 'Exiting favorites mode');
+    this.viewMode = 'reddit';
+    
+    UI.elements.subredditInput.parentElement.style.display = 'flex';
+    UI.elements.favoritesButton.classList.remove('active');
+    this.updateFavoritesButtonTitle();
+    UI.updateTooltipForMode('reddit');
+    
+    this.loadImage(false);
+  },
+
+  async updateFavoritesButtonTitle() {
+    const allFavorites = await Favorites.getAll();
+    const totalFavorites = (await Storage.getLocal(['favorites'])).favorites?.length || 0;
+    const visibleCount = allFavorites.length;
+    
+    if (totalFavorites !== visibleCount) {
+      UI.elements.favoritesButton.setAttribute('title', `View favorites (${visibleCount}/${totalFavorites}, ${totalFavorites - visibleCount} NSFW filtered)`);
+    } else {
+      UI.elements.favoritesButton.setAttribute('title', `View favorites (${totalFavorites}/${CONFIG.MAX_FAVORITES})`);
+    }
+  },
+
+  async loadCurrentFavorite() {
+    if (this.currentFavoriteIndex >= this.favorites.length) {
+      this.currentFavoriteIndex = 0;
+    }
+    
+    const fav = this.favorites[this.currentFavoriteIndex];
+    Logger.info('App', `Loading favorite ${this.currentFavoriteIndex + 1}/${this.favorites.length}`);
+    
+    UI.updateImageInfo(fav);
+    UI.setBackgroundImage(fav.imageUrl || fav.url, fav.title, fav.permalink, () => {
+      this.lastLoadTime = Date.now();
+    }, () => {
+      UI.showError('Favorite image unavailable');
+    });
+  },
+
+  async loadNextFavorite() {
+    if (this.viewMode !== 'favorites') return;
+    
+    const now = Date.now();
+    if (now - this.lastLoadTime < this.minLoadInterval) {
+      Logger.warn('App', 'Favorites navigation throttled');
+      UI.elements.refreshButton?.classList.add('loading');
+      setTimeout(() => {
+        UI.elements.refreshButton?.classList.remove('loading');
+      }, this.minLoadInterval - (now - this.lastLoadTime));
+      return;
+    }
+    
+    this.favorites = await Favorites.getAll();
+    
+    if (this.favorites.length === 0) {
+      UI.showError('No more favorites');
+      setTimeout(() => {
+        this.exitFavoritesMode();
+      }, 1500);
+      return;
+    }
+    
+    this.currentFavoriteIndex = (this.currentFavoriteIndex + 1) % this.favorites.length;
+    UI.elements.favoritesButton.setAttribute('title', `Back to Reddit (${this.favorites.length} favorites)`);
+    this.loadCurrentFavorite();
+  },
+
   setupEventListeners() {
     UI.elements.subredditInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
@@ -1007,7 +1260,20 @@ const App = {
     });
 
     UI.elements.refreshButton.addEventListener('click', () => {
-      this.loadImage(false);
+      if (this.viewMode === 'favorites') {
+        this.loadNextFavorite();
+      } else {
+        this.loadImage(false);
+      }
+    });
+
+    UI.elements.favoritesButton.addEventListener('click', () => {
+      Logger.info('App', `Favorites button clicked (current mode: ${this.viewMode})`);
+      if (this.viewMode === 'reddit') {
+        this.enterFavoritesMode();
+      } else {
+        this.exitFavoritesMode();
+      }
     });
 
     // Keyboard shortcuts
@@ -1023,15 +1289,33 @@ const App = {
           nsfwToggle.click();
         } else {
           e.preventDefault();
-          this.loadImage(false);
+          if (this.viewMode === 'favorites') {
+            this.loadNextFavorite();
+          } else {
+            this.loadImage(false);
+          }
         }
+      }
+
+      // Heart toggle: H
+      if (!isInputFocused && (e.key === 'h' || e.key === 'H')) {
+        e.preventDefault();
+        UI.elements.heartButton.click();
+      }
+
+      // View favorites: V
+      if (!isInputFocused && (e.key === 'v' || e.key === 'V')) {
+        e.preventDefault();
+        UI.elements.favoritesButton.click();
       }
 
       // Focus subreddit: S or /
       if (!isInputFocused && (e.key === 's' || e.key === 'S' || e.key === '/')) {
-        e.preventDefault();
-        UI.elements.subredditInput.focus();
-        UI.elements.subredditInput.select();
+        if (this.viewMode === 'reddit') {
+          e.preventDefault();
+          UI.elements.subredditInput.focus();
+          UI.elements.subredditInput.select();
+        }
       }
 
       // Toggle blur: B
@@ -1079,6 +1363,7 @@ const App = {
     UI.setSubreddit(settings.subreddit);
     
     this.setupEventListeners();
+    await this.updateFavoritesButtonTitle();
     await this.loadImage(false);
     
     Logger.success('App', 'Ready');

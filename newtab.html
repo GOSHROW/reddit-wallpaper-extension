@@ -44,6 +44,20 @@
                     </svg>
                     <div class="spinner hidden"></div>
                 </button>
+                <button id="heart-button" aria-label="Add to favorites" title="Add to favorites">
+                    <svg class="heart-outline" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                    </svg>
+                    <svg class="heart-filled hidden" width="18" height="18" viewBox="0 0 24 24" fill="#ff4757" stroke="#ff4757" stroke-width="2.5">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                    </svg>
+                </button>
+                <div class="button-divider"></div>
+                <button id="favorites-button" aria-label="View favorites" title="View favorites">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                </button>
                 <div class="button-divider"></div>
                 <button id="fullscreen-toggle" aria-label="Toggle display mode" title="Display mode: Fill">
                     <svg class="fullscreen-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -90,33 +104,40 @@
             </div>
             <div id="keyboard-tooltip" class="hidden">
                 <div class="tooltip-content">
-                    <div class="tooltip-title">Current Image</div>
                     <div class="image-info-grid">
                         <div class="info-row">
-                            <span class="info-icon">📐</span>
+                            <span class="info-label">Resolution</span>
                             <span class="info-value" id="info-resolution">Loading...</span>
                         </div>
                         <div class="info-row">
-                            <span class="info-icon">⬆️</span>
+                            <span class="info-label" id="score-label">Score</span>
                             <span class="info-value" id="info-score">-</span>
                         </div>
                         <div class="info-row">
-                            <span class="info-icon">🕐</span>
+                            <span class="info-label">Posted</span>
                             <span class="info-value" id="info-age">-</span>
                         </div>
                         <div class="info-row">
-                            <span class="info-icon">👤</span>
+                            <span class="info-label">Author</span>
                             <span class="info-value" id="info-author">-</span>
                         </div>
                     </div>
                     
                     <div class="tooltip-divider"></div>
                     <div class="tooltip-title">Keyboard Shortcuts</div>
-                    <div class="shortcut-item">
+                    <div class="shortcut-item" id="shortcut-next">
                         <kbd>N</kbd> <kbd>→</kbd>
                         <span>Next image</span>
                     </div>
                     <div class="shortcut-item">
+                        <kbd>H</kbd>
+                        <span>Add/remove favorite</span>
+                    </div>
+                    <div class="shortcut-item" id="shortcut-view">
+                        <kbd>V</kbd>
+                        <span>View favorites</span>
+                    </div>
+                    <div class="shortcut-item" id="shortcut-subreddit">
                         <kbd>S</kbd> <kbd>/</kbd>
                         <span>Focus subreddit</span>
                     </div>

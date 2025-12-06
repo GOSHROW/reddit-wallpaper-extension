@@ -10,6 +10,7 @@ Works on Chrome, Firefox, Edge, Brave, Opera, and other Chromium-based browsers.
 ## Features
 
 - **Beautiful wallpapers** from any subreddit (defaults to CineShots)
+- **Favorites system** - save images with one click and browse them anytime
 - **Smart caching** - first load ~1s, then 45+ tabs load instantly
 - **Smart aspect ratio** - fill display (crops edges) or fit image (with blurred background)
 - **NSFW filtering** - safe by default with optional toggle
@@ -47,6 +48,8 @@ Works on Chrome, Firefox, Edge, Brave, Opera, and other Chromium-based browsers.
 - **Change subreddit**: Click name at bottom left, type new name, press Enter
 - **View post**: Click image title to open Reddit post
 - **Refresh image**: Click refresh button (↻) or press `N`
+- **Save favorites**: Click heart (♥) or press `H` to save current image
+- **View favorites**: Click star (⭐) or press `V` to browse saved images
 - **Reposition clock**: Drag to move, double-click to reset
 - **Toggle time format**: Click time to switch 12/24-hour format
 
@@ -54,13 +57,27 @@ Works on Chrome, Firefox, Edge, Brave, Opera, and other Chromium-based browsers.
 
 | Key | Action |
 |-----|--------|
-| `N` or `→` | Load next image |
+| `N` or `→` | Load next image (or next favorite in favorites mode) |
+| `H` | Add/remove current image to favorites |
+| `V` | Toggle favorites view / Back to Reddit |
 | `S` or `/` | Focus subreddit input |
 | `I` or `?` | Toggle info & shortcuts menu |
 | `B` | Toggle background blur |
 | `F` | Toggle display mode (fill/fit) |
 | `Shift+N` | Toggle NSFW filter |
 | `Esc` | Close menu / Unfocus input |
+
+### Favorites System
+
+- **Save images**: Press `H` or click heart button to save current image
+- **View collection**: Press `V` or click star button to enter favorites mode
+- **Navigate**: Use `N` or `→` to cycle through saved images
+- **Remove**: Press `H` while viewing a favorited image to remove it
+- **Capacity**: Up to 500 favorites (count shown in button tooltip)
+- **Limit handling**: Clear error message when limit reached
+- **NSFW filtering**: Applies to favorites - NSFW favorites hidden when filter is on
+- **Data freshness**: Score from save time, age/author always current
+- **Persistent storage**: Favorites saved permanently until manually removed
 
 ### NSFW Filtering
 
@@ -141,11 +158,12 @@ Supports multiple Reddit post formats:
 - `Logger` - Structured logging for debugging
 - `Storage` - Browser storage abstraction (sync/local)
 - `Settings` - User preferences management
+- `Favorites` - Persistent favorites management with NSFW filtering
 - `ImageExtractor` - Multi-format image extraction
 - `RedditAPI` - API calls and post filtering
 - `ImageCache` - Caching and preloading logic
 - `UI` - DOM manipulation and event handling
-- `App` - Main application controller
+- `App` - Main application controller with view modes
 
 **Key technologies**:
 - Vanilla JavaScript (no dependencies)
