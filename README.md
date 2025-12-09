@@ -10,6 +10,7 @@ Works on Chrome, Firefox, Edge, Brave, Opera, and other Chromium-based browsers.
 ## Features
 
 - **Beautiful wallpapers** from any subreddit (defaults to CineShots)
+- **Image history** - navigate back/forward through last 50 viewed images
 - **Favorites system** - save images with one click and browse them anytime
 - **Smart caching** - first load ~1s, then 45+ tabs load instantly
 - **Smart aspect ratio** - fill display (crops edges) or fit image (with blurred background)
@@ -45,9 +46,11 @@ Works on Chrome, Firefox, Edge, Brave, Opera, and other Chromium-based browsers.
 
 ### Basic Controls
 
+- **Navigate images**: Use back/forward buttons (← →) or keyboard shortcuts
 - **Change subreddit**: Click name at bottom left, type new name, press Enter
 - **View post**: Click image title to open Reddit post
-- **Refresh image**: Click refresh button (↻) or press `N`
+- **Load new image**: Click refresh button (↻) or press `R` - loads fresh content from Reddit
+- **Shuffle favorites**: In favorites mode, refresh button (🔀) shuffles to random favorite
 - **Save favorites**: Click heart (♥) or press `H` to save current image
 - **View favorites**: Click star (⭐) or press `V` to browse saved images
 - **Reposition clock**: Drag to move, double-click to reset
@@ -57,7 +60,9 @@ Works on Chrome, Firefox, Edge, Brave, Opera, and other Chromium-based browsers.
 
 | Key | Action |
 |-----|--------|
-| `N` or `→` | Load next image (or next favorite in favorites mode) |
+| `P` or `←` | Previous image in history |
+| `N` or `→` | Next image in history (or load new if at end) |
+| `R` | Load new image (Reddit) / Shuffle (Favorites) |
 | `H` | Add/remove current image to favorites |
 | `V` | Toggle favorites view / Back to Reddit |
 | `S` or `/` | Focus subreddit input |
@@ -67,17 +72,29 @@ Works on Chrome, Firefox, Edge, Brave, Opera, and other Chromium-based browsers.
 | `Shift+N` | Toggle NSFW filter |
 | `Esc` | Close menu / Unfocus input |
 
+### Image History
+
+- **Navigate backward**: Press `P` or `←` to view previous images
+- **Navigate forward**: Press `N` or `→` to move through history
+- **Capacity**: Stores last 50 viewed images
+- **Persistent**: History maintained across tabs and browser sessions
+- **Smart boundaries**: Buttons/keys disabled at history edges (greyed out)
+- **Refresh vs Navigate**: `R` loads brand new images, bypassing history
+- **Throttling**: 400ms cooldown between navigations with visual feedback
+- **Favorites excluded**: Carousel navigation doesn't pollute Reddit history
+
 ### Favorites System
 
 - **Save images**: Press `H` or click heart button to save current image
 - **View collection**: Press `V` or click star button to enter favorites mode
-- **Navigate**: Use `N` or `→` to cycle through saved images
+- **Carousel navigation**: Use `P`/`←` and `N`/`→` for circular browsing
+- **Shuffle**: Press `R` or click shuffle button (🔀) to jump to random favorite
 - **Remove**: Press `H` while viewing a favorited image to remove it
 - **Capacity**: Up to 500 favorites (count shown in button tooltip)
-- **Limit handling**: Clear error message when limit reached
 - **NSFW filtering**: Applies to favorites - NSFW favorites hidden when filter is on
 - **Data freshness**: Score from save time, age/author always current
 - **Persistent storage**: Favorites saved permanently until manually removed
+- **Independent system**: Carousel doesn't affect Reddit history
 
 ### NSFW Filtering
 
@@ -158,6 +175,7 @@ Supports multiple Reddit post formats:
 - `Logger` - Structured logging for debugging
 - `Storage` - Browser storage abstraction (sync/local)
 - `Settings` - User preferences management
+- `ImageHistory` - Persistent image history (last 50 viewed)
 - `Favorites` - Persistent favorites management with NSFW filtering
 - `ImageExtractor` - Multi-format image extraction
 - `RedditAPI` - API calls and post filtering
@@ -199,7 +217,7 @@ Supports multiple Reddit post formats:
 - Fluid typography with `clamp()`
 
 **Interactive elements**:
-- Refresh button (spinner replaces icon during load)
+- Navigation buttons (back/forward/refresh) with context-aware spinners
 - Blur toggle (eye icon)
 - NSFW toggle (lock icon: 🔒/🔓)
 - Info tooltip (persistent, shows image metadata)
@@ -216,6 +234,8 @@ Supports multiple Reddit post formats:
 
 **Local Storage** (device-specific):
 - Image cache URLs (~15KB for 50 images)
+- Image history (last 50 viewed images)
+- Favorites collection (up to 500 images)
 - CDN priority scores
 - Image metadata (author, score, age, resolution)
 

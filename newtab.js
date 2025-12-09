@@ -76,6 +76,91 @@ const Settings = {
   }
 };
 
+const ImageHistory = {
+  MAX_HISTORY: 50,
+
+  async add(imageData, source = 'reddit') {
+    const { imageHistory = [], currentHistoryIndex = -1 } = await Storage.getLocal(['imageHistory', 'currentHistoryIndex']);
+    
+    const historyItem = {
+      imageUrl: imageData.imageUrl || imageData.url,
+      title: imageData.title,
+      permalink: imageData.permalink,
+      author: imageData.author,
+      score: imageData.score,
+      created: imageData.created,
+      isNSFW: imageData.isNSFW || false,
+      source,
+      timestamp: Date.now()
+    };
+    
+    let newHistory = [...imageHistory];
+    
+    if (currentHistoryIndex < imageHistory.length - 1) {
+      newHistory = imageHistory.slice(0, currentHistoryIndex + 1);
+    }
+    
+    newHistory.push(historyItem);
+    
+    if (newHistory.length > this.MAX_HISTORY) {
+      newHistory = newHistory.slice(newHistory.length - this.MAX_HISTORY);
+    }
+    
+    const newIndex = newHistory.length - 1;
+    await Storage.setLocal({ imageHistory: newHistory, currentHistoryIndex: newIndex });
+    Logger.info('ImageHistory', `Added (${newIndex + 1}/${newHistory.length})`);
+    return newIndex;
+  },
+
+  async getPrevious() {
+    const { imageHistory = [], currentHistoryIndex = -1 } = await Storage.getLocal(['imageHistory', 'currentHistoryIndex']);
+    
+    if (currentHistoryIndex <= 0) {
+      Logger.warn('ImageHistory', 'At oldest item');
+      return null;
+    }
+    
+    const newIndex = currentHistoryIndex - 1;
+    await Storage.setLocal({ currentHistoryIndex: newIndex });
+    Logger.info('ImageHistory', `Previous: ${newIndex + 1}/${imageHistory.length}`);
+    return imageHistory[newIndex];
+  },
+
+  async getNext() {
+    const { imageHistory = [], currentHistoryIndex = -1 } = await Storage.getLocal(['imageHistory', 'currentHistoryIndex']);
+    
+    if (currentHistoryIndex >= imageHistory.length - 1) {
+      Logger.warn('ImageHistory', 'At newest item');
+      return null;
+    }
+    
+    const newIndex = currentHistoryIndex + 1;
+    await Storage.setLocal({ currentHistoryIndex: newIndex });
+    Logger.info('ImageHistory', `Next: ${newIndex + 1}/${imageHistory.length}`);
+    return imageHistory[newIndex];
+  },
+
+  async canGoBack() {
+    const { currentHistoryIndex = -1 } = await Storage.getLocal(['currentHistoryIndex']);
+    return currentHistoryIndex > 0;
+  },
+
+  async canGoForward() {
+    const { imageHistory = [], currentHistoryIndex = -1 } = await Storage.getLocal(['imageHistory', 'currentHistoryIndex']);
+    return currentHistoryIndex < imageHistory.length - 1;
+  },
+
+  async getCurrentIndex() {
+    const { currentHistoryIndex = -1 } = await Storage.getLocal(['currentHistoryIndex']);
+    return currentHistoryIndex;
+  },
+
+  async clear() {
+    await Storage.setLocal({ imageHistory: [], currentHistoryIndex: -1 });
+    Logger.info('ImageHistory', 'Cleared');
+  }
+};
+
 const Favorites = {
   async add(imageData) {
     const { favorites = [] } = await Storage.getLocal(['favorites']);
@@ -481,6 +566,8 @@ const UI = {
       backgroundContainer: document.getElementById('background-container'),
       backgroundLayer1: document.getElementById('background-layer-1'),
       backgroundLayer2: document.getElementById('background-layer-2'),
+      backButton: document.getElementById('back-button'),
+      forwardButton: document.getElementById('forward-button'),
       refreshButton: document.getElementById('refresh-button'),
       heartButton: document.getElementById('heart-button'),
       favoritesButton: document.getElementById('favorites-button'),
@@ -671,18 +758,21 @@ const UI = {
 
   updateTooltipForMode(viewMode) {
     const nextShortcut = document.getElementById('shortcut-next');
+    const refreshShortcut = document.getElementById('shortcut-refresh');
     const viewShortcut = document.getElementById('shortcut-view');
     const subredditShortcut = document.getElementById('shortcut-subreddit');
     const scoreLabel = document.getElementById('score-label');
     
     if (viewMode === 'favorites') {
       nextShortcut.querySelector('span').textContent = 'Next favorite';
+      refreshShortcut.querySelector('span').textContent = 'Shuffle favorites';
       viewShortcut.querySelector('span').textContent = 'Back to Reddit';
       subredditShortcut.style.opacity = '0.4';
       subredditShortcut.style.textDecoration = 'line-through';
       scoreLabel.innerHTML = 'Score <span class="score-note">(saved)</span>';
     } else {
       nextShortcut.querySelector('span').textContent = 'Next image';
+      refreshShortcut.querySelector('span').textContent = 'Load new image';
       viewShortcut.querySelector('span').textContent = 'View favorites';
       subredditShortcut.style.opacity = '1';
       subredditShortcut.style.textDecoration = 'none';
@@ -1073,6 +1163,23 @@ const UI = {
     this.clearError();
   },
 
+  async updateNavigationButtons() {
+    if (window.App && window.App.viewMode === 'favorites') {
+      this.elements.backButton.disabled = false;
+      this.elements.forwardButton.disabled = false;
+      Logger.debug('UI', 'Navigation: favorites mode (always enabled)');
+      return;
+    }
+    
+    const canGoBack = await ImageHistory.canGoBack();
+    const canGoForward = await ImageHistory.canGoForward();
+    
+    this.elements.backButton.disabled = !canGoBack;
+    this.elements.forwardButton.disabled = !canGoForward;
+    
+    Logger.debug('UI', `Navigation: back=${canGoBack}, forward=${canGoForward}`);
+  },
+
   setSubreddit(subreddit) {
     this.elements.subredditInput.value = subreddit;
   },
@@ -1123,9 +1230,11 @@ const App = {
         throw new Error('No images in cache. Click refresh or press N to load');
       }
       
-      const onSuccess = () => {
+      const onSuccess = async () => {
         this.lastLoadTime = Date.now();
         this.isLoadingImage = false;
+        await ImageHistory.add(image, 'reddit');
+        await UI.updateNavigationButtons();
       };
       
       const onError = async () => {
@@ -1160,7 +1269,66 @@ const App = {
       Logger.info('App', `Subreddit: ${this.currentSubreddit} → ${newSubreddit}`);
       await Settings.save(newSubreddit);
       await ImageCache.clear();
+      await ImageHistory.clear();
       await this.loadImage(true);
+    }
+  },
+
+  async loadPreviousImage() {
+    const now = Date.now();
+    if (now - this.lastLoadTime < this.minLoadInterval) {
+      Logger.warn('App', 'Navigation throttled');
+      UI.elements.backButton?.classList.add('loading');
+      setTimeout(() => {
+        UI.elements.backButton?.classList.remove('loading');
+      }, this.minLoadInterval - (now - this.lastLoadTime));
+      return;
+    }
+
+    const image = await ImageHistory.getPrevious();
+    if (!image) {
+      Logger.warn('App', 'No previous image');
+      return;
+    }
+    
+    UI.elements.backButton?.classList.add('loading');
+    Logger.info('App', 'Loading previous image from history');
+    UI.setBackgroundImage(image.imageUrl, image.title, image.permalink, async () => {
+      this.lastLoadTime = Date.now();
+      UI.elements.backButton?.classList.remove('loading');
+      await UI.updateNavigationButtons();
+    }, () => {
+      UI.elements.backButton?.classList.remove('loading');
+    });
+    UI.updateImageInfo(image);
+  },
+
+  async loadNextImage() {
+    const now = Date.now();
+    if (now - this.lastLoadTime < this.minLoadInterval) {
+      Logger.warn('App', 'Navigation throttled');
+      UI.elements.forwardButton?.classList.add('loading');
+      setTimeout(() => {
+        UI.elements.forwardButton?.classList.remove('loading');
+      }, this.minLoadInterval - (now - this.lastLoadTime));
+      return;
+    }
+
+    const image = await ImageHistory.getNext();
+    if (image) {
+      UI.elements.forwardButton?.classList.add('loading');
+      Logger.info('App', 'Loading next image from history');
+      UI.setBackgroundImage(image.imageUrl, image.title, image.permalink, async () => {
+        this.lastLoadTime = Date.now();
+        UI.elements.forwardButton?.classList.remove('loading');
+        await UI.updateNavigationButtons();
+      }, () => {
+        UI.elements.forwardButton?.classList.remove('loading');
+      });
+      UI.updateImageInfo(image);
+    } else {
+      Logger.info('App', 'At end of history, loading new image');
+      await this.loadImage(false);
     }
   },
 
@@ -1182,6 +1350,17 @@ const App = {
     UI.elements.subredditInput.parentElement.style.display = 'none';
     UI.elements.favoritesButton.classList.add('active');
     UI.elements.favoritesButton.setAttribute('title', `Back to Reddit (${this.favorites.length} favorites)`);
+    
+    const refreshIcon = UI.elements.refreshButton.querySelector('.refresh-icon');
+    const shuffleIcon = UI.elements.refreshButton.querySelector('.shuffle-icon');
+    refreshIcon.classList.add('hidden');
+    shuffleIcon.classList.remove('hidden');
+    UI.elements.refreshButton.setAttribute('title', 'Shuffle favorites');
+    UI.elements.refreshButton.setAttribute('aria-label', 'Shuffle favorites');
+    
+    UI.elements.backButton.disabled = false;
+    UI.elements.forwardButton.disabled = false;
+    
     UI.updateTooltipForMode('favorites');
     
     this.loadCurrentFavorite();
@@ -1193,6 +1372,14 @@ const App = {
     
     UI.elements.subredditInput.parentElement.style.display = 'flex';
     UI.elements.favoritesButton.classList.remove('active');
+    
+    const refreshIcon = UI.elements.refreshButton.querySelector('.refresh-icon');
+    const shuffleIcon = UI.elements.refreshButton.querySelector('.shuffle-icon');
+    refreshIcon.classList.remove('hidden');
+    shuffleIcon.classList.add('hidden');
+    UI.elements.refreshButton.setAttribute('title', 'Load new image');
+    UI.elements.refreshButton.setAttribute('aria-label', 'Load new image');
+    
     this.updateFavoritesButtonTitle();
     UI.updateTooltipForMode('reddit');
     
@@ -1222,8 +1409,14 @@ const App = {
     UI.updateImageInfo(fav);
     UI.setBackgroundImage(fav.imageUrl || fav.url, fav.title, fav.permalink, () => {
       this.lastLoadTime = Date.now();
+      UI.elements.backButton.disabled = false;
+      UI.elements.forwardButton.disabled = false;
+      UI.elements.backButton?.classList.remove('loading');
+      UI.elements.forwardButton?.classList.remove('loading');
     }, () => {
       UI.showError('Favorite image unavailable');
+      UI.elements.backButton?.classList.remove('loading');
+      UI.elements.forwardButton?.classList.remove('loading');
     });
   },
 
@@ -1233,9 +1426,9 @@ const App = {
     const now = Date.now();
     if (now - this.lastLoadTime < this.minLoadInterval) {
       Logger.warn('App', 'Favorites navigation throttled');
-      UI.elements.refreshButton?.classList.add('loading');
+      UI.elements.forwardButton?.classList.add('loading');
       setTimeout(() => {
-        UI.elements.refreshButton?.classList.remove('loading');
+        UI.elements.forwardButton?.classList.remove('loading');
       }, this.minLoadInterval - (now - this.lastLoadTime));
       return;
     }
@@ -1250,8 +1443,53 @@ const App = {
       return;
     }
     
+    UI.elements.forwardButton?.classList.add('loading');
     this.currentFavoriteIndex = (this.currentFavoriteIndex + 1) % this.favorites.length;
     UI.elements.favoritesButton.setAttribute('title', `Back to Reddit (${this.favorites.length} favorites)`);
+    this.loadCurrentFavorite();
+  },
+
+  async loadPreviousFavorite() {
+    if (this.viewMode !== 'favorites') return;
+    
+    const now = Date.now();
+    if (now - this.lastLoadTime < this.minLoadInterval) {
+      Logger.warn('App', 'Favorites navigation throttled');
+      UI.elements.backButton?.classList.add('loading');
+      setTimeout(() => {
+        UI.elements.backButton?.classList.remove('loading');
+      }, this.minLoadInterval - (now - this.lastLoadTime));
+      return;
+    }
+    
+    this.favorites = await Favorites.getAll();
+    
+    if (this.favorites.length === 0) {
+      UI.showError('No more favorites');
+      setTimeout(() => {
+        this.exitFavoritesMode();
+      }, 1500);
+      return;
+    }
+    
+    UI.elements.backButton?.classList.add('loading');
+    this.currentFavoriteIndex = (this.currentFavoriteIndex - 1 + this.favorites.length) % this.favorites.length;
+    UI.elements.favoritesButton.setAttribute('title', `Back to Reddit (${this.favorites.length} favorites)`);
+    this.loadCurrentFavorite();
+  },
+
+  async shuffleFavorites() {
+    if (this.viewMode !== 'favorites') return;
+    
+    this.favorites = await Favorites.getAll();
+    
+    if (this.favorites.length === 0) {
+      UI.showError('No favorites to shuffle');
+      return;
+    }
+    
+    this.currentFavoriteIndex = Math.floor(Math.random() * this.favorites.length);
+    Logger.info('App', `Shuffled to favorite ${this.currentFavoriteIndex + 1}/${this.favorites.length}`);
     this.loadCurrentFavorite();
   },
 
@@ -1268,9 +1506,29 @@ const App = {
 
     UI.elements.refreshButton.addEventListener('click', () => {
       if (this.viewMode === 'favorites') {
-        this.loadNextFavorite();
+        this.shuffleFavorites();
       } else {
         this.loadImage(false);
+      }
+    });
+
+    UI.elements.backButton.addEventListener('click', async () => {
+      if (!UI.elements.backButton.disabled) {
+        if (this.viewMode === 'favorites') {
+          await this.loadPreviousFavorite();
+        } else {
+          await this.loadPreviousImage();
+        }
+      }
+    });
+
+    UI.elements.forwardButton.addEventListener('click', async () => {
+      if (!UI.elements.forwardButton.disabled) {
+        if (this.viewMode === 'favorites') {
+          await this.loadNextFavorite();
+        } else {
+          await this.loadNextImage();
+        }
       }
     });
 
@@ -1284,9 +1542,22 @@ const App = {
     });
 
     // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', async (e) => {
       const target = e.target;
       const isInputFocused = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+
+      // Previous image: P or Left Arrow
+      if (!isInputFocused && (e.key === 'p' || e.key === 'P' || e.key === 'ArrowLeft')) {
+        const canGoBack = await ImageHistory.canGoBack();
+        if (canGoBack || this.viewMode === 'favorites') {
+          e.preventDefault();
+          if (this.viewMode === 'favorites') {
+            await this.loadPreviousFavorite();
+          } else {
+            await this.loadPreviousImage();
+          }
+        }
+      }
 
       // Next image: N or Right Arrow
       if (!isInputFocused && (e.key === 'n' || e.key === 'N' || e.key === 'ArrowRight')) {
@@ -1295,11 +1566,14 @@ const App = {
           const nsfwToggle = document.getElementById('allow-nsfw-toggle');
           nsfwToggle.click();
         } else {
-          e.preventDefault();
-          if (this.viewMode === 'favorites') {
-            this.loadNextFavorite();
-          } else {
-            this.loadImage(false);
+          const canGoForward = await ImageHistory.canGoForward();
+          if (canGoForward || this.viewMode === 'favorites') {
+            e.preventDefault();
+            if (this.viewMode === 'favorites') {
+              this.loadNextFavorite();
+            } else {
+              await this.loadNextImage();
+            }
           }
         }
       }
@@ -1314,6 +1588,12 @@ const App = {
       if (!isInputFocused && (e.key === 'v' || e.key === 'V')) {
         e.preventDefault();
         UI.elements.favoritesButton.click();
+      }
+
+      // Refresh / Shuffle: R
+      if (!isInputFocused && (e.key === 'r' || e.key === 'R')) {
+        e.preventDefault();
+        UI.elements.refreshButton.click();
       }
 
       // Focus subreddit: S or /

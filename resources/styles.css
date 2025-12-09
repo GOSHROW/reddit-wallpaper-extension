@@ -344,8 +344,70 @@ body {
   transform: scale(0.95);
 }
 
-#refresh-button .refresh-icon {
+#refresh-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+#back-button,
+#forward-button {
+  border: none;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  position: relative;
+}
+
+#back-button:hover:not(:disabled),
+#forward-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  transform: scale(1.05);
+}
+
+#back-button:disabled,
+#forward-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+#back-button .spinner,
+#forward-button .spinner {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+#back-button.loading .back-icon,
+#forward-button.loading .forward-icon {
+  opacity: 0;
+}
+
+#back-button.loading .spinner,
+#forward-button.loading .spinner {
+  display: block;
+}
+
+#refresh-button .refresh-icon,
+#refresh-button .shuffle-icon {
   transition: transform 0.3s ease;
+}
+
+#refresh-button .refresh-icon.hidden,
+#refresh-button .shuffle-icon.hidden {
+  display: none;
 }
 
 #refresh-button:hover .refresh-icon {
@@ -362,7 +424,8 @@ body {
   animation: spin 0.8s linear infinite;
 }
 
-#refresh-button.loading .refresh-icon {
+#refresh-button.loading .refresh-icon,
+#refresh-button.loading .shuffle-icon {
   opacity: 0;
 }
 
