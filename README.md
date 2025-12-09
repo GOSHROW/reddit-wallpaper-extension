@@ -204,7 +204,7 @@ Supports multiple Reddit post formats:
 - NSFW toggle (lock icon: 🔒/🔓)
 - Info tooltip (persistent, shows image metadata)
 - Draggable clock with reset
-- Error messages (context-aware, actionable)
+- Non-blocking error notifications (dismissible, don't obscure post links)
 
 ### Storage
 

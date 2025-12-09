@@ -150,7 +150,7 @@ const ImageExtractor = {
       const result = extractor.call(this, postData);
       if (result) {
         return Array.isArray(result) ? result : [result];
-      }
+    }
     }
     
     return null;
@@ -326,7 +326,7 @@ const RedditAPI = {
       const imageData = ImageExtractor.extractFromPost(post.data);
       if (imageData) {
         images.push(...imageData);
-      }
+    }
     }
     Logger.info('RedditAPI', `Extracted ${images.length} images`);
     return images;
@@ -494,6 +494,9 @@ const UI = {
       infoAge: document.getElementById('info-age'),
       infoAuthor: document.getElementById('info-author'),
       postTitle: document.getElementById('post-title'),
+      errorNotification: document.getElementById('error-notification'),
+      errorMessage: document.getElementById('error-message'),
+      errorClose: document.getElementById('error-close'),
       time: document.getElementById('time'),
       date: document.getElementById('date'),
       loading: document.getElementById('loading'),
@@ -509,6 +512,13 @@ const UI = {
     this.initNsfwToggle();
     this.initHeartButton();
     this.initFullscreenToggle();
+    this.initErrorNotification();
+  },
+
+  initErrorNotification() {
+    this.elements.errorClose?.addEventListener('click', () => {
+      this.clearError();
+    });
   },
 
   initClockDrag() {
@@ -538,7 +548,6 @@ const UI = {
       const deltaX = e.clientX - startX;
       const deltaY = e.clientY - startY;
       
-      // Mark as moved if dragged more than 5 pixels
       if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
         hasMoved = true;
       }
@@ -560,7 +569,6 @@ const UI = {
           this.saveClockPosition();
         }
         
-        // Prevent click event from firing if we moved
         if (hasMoved) {
           setTimeout(() => {
             hasMoved = false;
@@ -578,7 +586,6 @@ const UI = {
     document.addEventListener('mouseup', onMouseUp);
     container.addEventListener('dblclick', onDoubleClick);
     
-    // Store hasMoved state for time format toggle check
     this._hasMoved = () => hasMoved;
   },
 
@@ -618,14 +625,12 @@ const UI = {
 
   initTimeFormatToggle() {
     this.elements.time.addEventListener('click', (e) => {
-      // Only toggle if not dragging and haven't moved
       if (!this.isDragging && !this._hasMoved()) {
         e.stopPropagation();
         this.toggleTimeFormat();
       }
     });
     
-    // Add pointer cursor to indicate clickability
     this.elements.time.style.cursor = 'pointer';
   },
 
@@ -1029,7 +1034,7 @@ const UI = {
       timeString = `${hours.toString().padStart(2, '0')}:${minutes}`;
     } else {
       const period = hours >= 12 ? 'PM' : 'AM';
-      hours = hours % 12 || 12; // Convert to 12-hour format
+      hours = hours % 12 || 12;
       timeString = `${hours}:${minutes} ${period}`;
     }
     
@@ -1040,11 +1045,13 @@ const UI = {
   },
 
   showError(message) {
-    this.elements.postTitle.textContent = message;
-    this.elements.postTitle.classList.add('error');
+    this.elements.errorMessage.textContent = message;
+    this.elements.errorNotification.classList.remove('hidden');
+    Logger.warn('UI', 'Error shown', { message });
   },
 
   clearError() {
+    this.elements.errorNotification.classList.add('hidden');
     this.elements.postTitle.classList.remove('error');
   },
 
