@@ -79,6 +79,7 @@ Works on Chrome, Firefox, Edge, Brave, Opera, and other Chromium-based browsers.
 - **Capacity**: Stores last 50 viewed images
 - **Persistent**: History maintained across tabs and browser sessions
 - **Smart boundaries**: Buttons/keys disabled at history edges (greyed out)
+- **NSFW filtering**: Skips NSFW images in history when filter is enabled
 - **Refresh vs Navigate**: `R` loads brand new images, bypassing history
 - **Throttling**: 400ms cooldown between navigations with visual feedback
 - **Favorites excluded**: Carousel navigation doesn't pollute Reddit history

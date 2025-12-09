@@ -114,13 +114,25 @@ const ImageHistory = {
 
   async getPrevious() {
     const { imageHistory = [], currentHistoryIndex = -1 } = await Storage.getLocal(['imageHistory', 'currentHistoryIndex']);
+    const { allowNSFW } = await Storage.get(['allowNSFW'], { allowNSFW: false });
     
     if (currentHistoryIndex <= 0) {
       Logger.warn('ImageHistory', 'At oldest item');
       return null;
     }
     
-    const newIndex = currentHistoryIndex - 1;
+    let newIndex = currentHistoryIndex - 1;
+    
+    // Skip NSFW images if filter is enabled
+    while (newIndex >= 0 && !allowNSFW && imageHistory[newIndex]?.isNSFW) {
+      newIndex--;
+    }
+    
+    if (newIndex < 0) {
+      Logger.warn('ImageHistory', 'No non-NSFW items before current');
+      return null;
+    }
+    
     await Storage.setLocal({ currentHistoryIndex: newIndex });
     Logger.info('ImageHistory', `Previous: ${newIndex + 1}/${imageHistory.length}`);
     return imageHistory[newIndex];
@@ -128,26 +140,62 @@ const ImageHistory = {
 
   async getNext() {
     const { imageHistory = [], currentHistoryIndex = -1 } = await Storage.getLocal(['imageHistory', 'currentHistoryIndex']);
+    const { allowNSFW } = await Storage.get(['allowNSFW'], { allowNSFW: false });
     
     if (currentHistoryIndex >= imageHistory.length - 1) {
       Logger.warn('ImageHistory', 'At newest item');
       return null;
     }
     
-    const newIndex = currentHistoryIndex + 1;
+    let newIndex = currentHistoryIndex + 1;
+    
+    // Skip NSFW images if filter is enabled
+    while (newIndex < imageHistory.length && !allowNSFW && imageHistory[newIndex]?.isNSFW) {
+      newIndex++;
+    }
+    
+    if (newIndex >= imageHistory.length) {
+      Logger.warn('ImageHistory', 'No non-NSFW items after current');
+      return null;
+    }
+    
     await Storage.setLocal({ currentHistoryIndex: newIndex });
     Logger.info('ImageHistory', `Next: ${newIndex + 1}/${imageHistory.length}`);
     return imageHistory[newIndex];
   },
 
   async canGoBack() {
-    const { currentHistoryIndex = -1 } = await Storage.getLocal(['currentHistoryIndex']);
-    return currentHistoryIndex > 0;
+    const { imageHistory = [], currentHistoryIndex = -1 } = await Storage.getLocal(['imageHistory', 'currentHistoryIndex']);
+    const { allowNSFW } = await Storage.get(['allowNSFW'], { allowNSFW: false });
+    
+    if (currentHistoryIndex <= 0) return false;
+    
+    // Check if there's any non-NSFW item before current
+    if (!allowNSFW) {
+      for (let i = currentHistoryIndex - 1; i >= 0; i--) {
+        if (!imageHistory[i]?.isNSFW) return true;
+      }
+      return false;
+    }
+    
+    return true;
   },
 
   async canGoForward() {
     const { imageHistory = [], currentHistoryIndex = -1 } = await Storage.getLocal(['imageHistory', 'currentHistoryIndex']);
-    return currentHistoryIndex < imageHistory.length - 1;
+    const { allowNSFW } = await Storage.get(['allowNSFW'], { allowNSFW: false });
+    
+    if (currentHistoryIndex >= imageHistory.length - 1) return false;
+    
+    // Check if there's any non-NSFW item after current
+    if (!allowNSFW) {
+      for (let i = currentHistoryIndex + 1; i < imageHistory.length; i++) {
+        if (!imageHistory[i]?.isNSFW) return true;
+      }
+      return false;
+    }
+    
+    return true;
   },
 
   async getCurrentIndex() {
