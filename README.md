@@ -31,10 +31,10 @@ looked like they worked now actually do.
 - **Fetches actually succeed again.** Reddit now gates its `.json` endpoints behind
   a bot check. The request is cross-origin (`chrome-extension://` → `reddit.com`),
   and a cross-origin `fetch` sends no cookies by default, so every request was
-  getting a 403 challenge page instead of data. Adding `credentials: 'include'` —
-  permitted because the manifest holds `host_permissions` for reddit.com — attaches
-  the browser's existing Reddit session and the endpoint returns 200 JSON. See
-  **Privacy & Security** for what that implies.
+  getting a challenge page instead of data. `credentials: 'include'` — permitted by
+  the existing reddit.com `host_permissions` — reuses the Reddit session your
+  browser already has, which keeps setup at zero: no API key, no OAuth app, no login
+  screen. See [Privacy & Security](#privacy--security) for the trade-off.
 - **Reddit errors are diagnosed properly.** A 403 with an HTML body no longer claims
   your public subreddit is private, and a non-JSON response no longer leaks
   `... is not valid JSON` into the UI. HTTP 429 and 401 now have their own messages,
@@ -336,24 +336,30 @@ automatically on first run and removed from sync.
 
 ### Privacy & Security
 
-- ✅ No tracking or analytics
-- ✅ No servers of our own - requests go to Reddit's public API, and image
-  downloads go to whichever CDN hosts the image (i.redd.it, imgur, or the
-  external host the post links to)
-- ⚠️ **Uses your browser's existing Reddit session.** Requests to Reddit are sent
-  with your reddit.com cookies (`credentials: 'include'`). This is required: Reddit
-  gates its `.json` endpoints behind a bot check, and a cookie-less request gets a
-  403 challenge page instead of data. Consequences worth knowing:
-  - If you are signed in to Reddit, these requests are attributable to your account
-    and the feed may be personalised by it.
-  - Reddit account-level content settings can affect what comes back, in addition to
-    this extension's own NSFW toggle.
-  - Nothing is sent anywhere except reddit.com, and no credentials are read, stored
-    or transmitted by the extension itself - the browser attaches the cookies.
-- ✅ Content Security Policy enforced (`script-src 'self'`, no inline script)
-- ✅ Post titles are rendered as text nodes, never as HTML
-- ✅ Only cosmetic settings are uploaded to your browser's sync storage; everything
-  else stays on the device
+Two kinds of host get contacted and nothing else: reddit.com for the post listing,
+and whichever CDN serves each image (i.redd.it, imgur, or the site an external post
+links to). There is no backend, no analytics, no telemetry.
+
+**It rides on the Reddit session your browser already has.** Requests carry your
+reddit.com cookies (`credentials: 'include'`). Reddit gates its `.json` endpoints
+behind a bot check, so a cookie-less request gets a challenge page instead of data —
+and reusing the session you already have is both the fix and the reason there is
+nothing to set up. No API key, no OAuth app to register, no client secret shipped
+inside the extension, no login screen. Install it and open a tab. Staying signed in
+to Reddit is also what keeps the bot check quiet.
+
+The trade is that those requests look like you. If you are signed in they are
+attributable to your account, and your Reddit content settings can affect what comes
+back alongside this extension's own NSFW toggle. The extension itself never reads,
+stores or forwards a credential — the browser attaches the cookies, and they go
+nowhere except reddit.com.
+
+Everything else:
+
+- Only cosmetic settings sync to your browser account. The subreddit, the NSFW
+  toggle, favorites and history stay on the device.
+- CSP is `script-src 'self'` with no inline script.
+- Post titles render as text nodes, so a hostile title cannot become markup.
 
 ## Development
 
@@ -383,11 +389,11 @@ deterministic.
 | `tests/prefs.test.js` | sync/local split, v1.4 migration, quota failures, clock |
 | `tests/static-audit.test.js` | cross-file drift between JS, HTML, CSS, manifests, README |
 
-`static-audit.test.js` is the one worth knowing about: most defects in this
-codebase have historically been *drift* rather than logic errors - an id the JS
-queries that the HTML dropped, a `hidden` class with no rule behind it, a README
-shortcut that no longer exists, a version that only got bumped in one manifest. It
-asserts those invariants directly, so they fail in CI rather than in a user's tab.
+`static-audit.test.js` earns its keep. Most defects in this codebase have been
+*drift*, not logic errors: an id the JS queries that the HTML dropped, a `hidden`
+class with no rule behind it, a README shortcut that no longer exists, a version
+bumped in one manifest but not the other. It asserts those invariants directly, so
+they break CI instead of someone's new tab.
 
 ## Troubleshooting
 
