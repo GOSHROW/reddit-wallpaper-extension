@@ -26,100 +26,118 @@
     
     <div id="overlay">
         <div id="image-info">
-            <div class="info-left">
-                <span id="subreddit-label">r/</span>
-                <input 
-                    type="text" 
-                    id="subreddit-input" 
-                    placeholder="CineShots"
-                    aria-label="Subreddit name"
-                    autocomplete="off"
-                    spellcheck="false">
+            <button id="collapse-toggle" aria-label="Collapse info bar" title="Collapse info bar (C)" aria-expanded="true" aria-controls="image-info">
+                <!-- Straight arrow: fold the bar away, pointing the way it folds.
+                     A shaft plus head, deliberately unlike the bare chevrons the
+                     previous/next buttons use. -->
+                <svg class="collapse-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="20" y1="12" x2="7" y2="12"/>
+                    <polyline points="12 7 7 12 12 17"/>
+                </svg>
+                <!-- The same arrow curled: unfurl it back out. -->
+                <svg class="expand-icon hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M5 7v3a4 4 0 0 0 4 4h9"/>
+                    <polyline points="15 10 19 14 15 18"/>
+                </svg>
+            </button>
+            <!-- Everything that folds away. Kept as one clipped box so the
+                 arrow above never moves and the fold can animate. -->
+            <div id="info-content">
+                <div class="info-left">
+                    <span id="subreddit-label">r/</span>
+                    <input 
+                        type="text" 
+                        id="subreddit-input" 
+                        placeholder="CineShots"
+                        aria-label="Subreddit name"
+                        autocomplete="off"
+                        spellcheck="false">
+                </div>
+                <div id="post-title" role="status" aria-live="polite">Loading...</div>
+                <div class="button-group">
+                    <button id="back-button" aria-label="Previous image" title="Previous image" disabled>
+                        <svg class="back-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"/>
+                        </svg>
+                        <div class="spinner"></div>
+                    </button>
+                    <button id="forward-button" aria-label="Next image" title="Next image" disabled>
+                        <svg class="forward-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                        <div class="spinner"></div>
+                    </button>
+                    <button id="refresh-button" aria-label="Load new image" title="Load new image">
+                        <svg class="refresh-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                        </svg>
+                        <svg class="shuffle-icon hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>
+                        </svg>
+                        <div class="spinner"></div>
+                    </button>
+                    <button id="heart-button" aria-label="Add to favorites" title="Add to favorites" aria-pressed="false">
+                        <svg class="heart-outline" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                        </svg>
+                        <svg class="heart-filled hidden" width="18" height="18" viewBox="0 0 24 24" fill="#ff4757" stroke="#ff4757" stroke-width="2.5">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                        </svg>
+                    </button>
+                    <div class="button-divider"></div>
+                    <button id="favorites-button" aria-label="View favorites" title="View favorites" aria-pressed="false">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                        </svg>
+                    </button>
+                    <div class="button-divider"></div>
+                    <button id="fullscreen-toggle" aria-label="Toggle display mode" title="Display mode: Fill" aria-pressed="false">
+                        <svg class="fullscreen-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                        </svg>
+                        <svg class="fullscreen-on hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+                        </svg>
+                    </button>
+                    <button id="blur-toggle" aria-label="Toggle background blur" title="Background blur off" aria-pressed="false">
+                        <svg class="blur-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <circle cx="12" cy="12" r="3"/>
+                            <circle cx="12" cy="12" r="6" opacity="0.4"/>
+                            <circle cx="12" cy="12" r="9" opacity="0.2"/>
+                        </svg>
+                        <svg class="blur-on hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <circle cx="12" cy="12" r="3" fill="currentColor" opacity="0.3"/>
+                            <circle cx="12" cy="12" r="6" opacity="0.5"/>
+                            <circle cx="12" cy="12" r="9" opacity="0.3"/>
+                        </svg>
+                    </button>
+                    <button id="nsfw-toggle" aria-label="Toggle NSFW content" title="NSFW content filtered" aria-pressed="false">
+                        <svg class="nsfw-locked" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            <circle cx="12" cy="16" r="1.5" fill="currentColor"/>
+                            <line x1="12" y1="17.5" x2="12" y2="19"/>
+                        </svg>
+                        <svg class="nsfw-unlocked hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V9a5 5 0 0 1 5.5-5"/>
+                            <circle cx="12" cy="16" r="1.5" fill="currentColor"/>
+                            <line x1="12" y1="17.5" x2="12" y2="19"/>
+                        </svg>
+                    </button>
+                    <div class="button-divider"></div>
+                    <button id="keyboard-help" aria-label="Info & shortcuts" title="Info & Shortcuts" aria-expanded="false" aria-controls="keyboard-tooltip">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="12" y1="16" x2="12" y2="12"/>
+                            <line x1="12" y1="8" x2="12.01" y2="8"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
-            <div id="post-title" role="status" aria-live="polite">Loading...</div>
             <div id="error-notification" class="hidden" role="alert">
                 <span id="error-message"></span>
                 <button id="error-close" aria-label="Close error">&times;</button>
-            </div>
-            <div class="button-group">
-                <button id="back-button" aria-label="Previous image" title="Previous image" disabled>
-                    <svg class="back-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="15 18 9 12 15 6"/>
-                    </svg>
-                    <div class="spinner"></div>
-                </button>
-                <button id="forward-button" aria-label="Next image" title="Next image" disabled>
-                    <svg class="forward-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="9 18 15 12 9 6"/>
-                    </svg>
-                    <div class="spinner"></div>
-                </button>
-                <button id="refresh-button" aria-label="Load new image" title="Load new image">
-                    <svg class="refresh-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
-                    </svg>
-                    <svg class="shuffle-icon hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>
-                    </svg>
-                    <div class="spinner"></div>
-                </button>
-                <button id="heart-button" aria-label="Add to favorites" title="Add to favorites" aria-pressed="false">
-                    <svg class="heart-outline" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                    </svg>
-                    <svg class="heart-filled hidden" width="18" height="18" viewBox="0 0 24 24" fill="#ff4757" stroke="#ff4757" stroke-width="2.5">
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                    </svg>
-                </button>
-                <div class="button-divider"></div>
-                <button id="favorites-button" aria-label="View favorites" title="View favorites" aria-pressed="false">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                    </svg>
-                </button>
-                <div class="button-divider"></div>
-                <button id="fullscreen-toggle" aria-label="Toggle display mode" title="Display mode: Fill" aria-pressed="false">
-                    <svg class="fullscreen-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-                    </svg>
-                    <svg class="fullscreen-on hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
-                    </svg>
-                </button>
-                <button id="blur-toggle" aria-label="Toggle background blur" title="Background blur off" aria-pressed="false">
-                    <svg class="blur-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <circle cx="12" cy="12" r="3"/>
-                        <circle cx="12" cy="12" r="6" opacity="0.4"/>
-                        <circle cx="12" cy="12" r="9" opacity="0.2"/>
-                    </svg>
-                    <svg class="blur-on hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <circle cx="12" cy="12" r="3" fill="currentColor" opacity="0.3"/>
-                        <circle cx="12" cy="12" r="6" opacity="0.5"/>
-                        <circle cx="12" cy="12" r="9" opacity="0.3"/>
-                    </svg>
-                </button>
-                <button id="nsfw-toggle" aria-label="Toggle NSFW content" title="NSFW content filtered" aria-pressed="false">
-                    <svg class="nsfw-locked" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                        <circle cx="12" cy="16" r="1.5" fill="currentColor"/>
-                        <line x1="12" y1="17.5" x2="12" y2="19"/>
-                    </svg>
-                    <svg class="nsfw-unlocked hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                        <path d="M7 11V9a5 5 0 0 1 5.5-5"/>
-                        <circle cx="12" cy="16" r="1.5" fill="currentColor"/>
-                        <line x1="12" y1="17.5" x2="12" y2="19"/>
-                    </svg>
-                </button>
-                <div class="button-divider"></div>
-                <button id="keyboard-help" aria-label="Info & shortcuts" title="Info & Shortcuts" aria-expanded="false" aria-controls="keyboard-tooltip">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <circle cx="12" cy="12" r="10"/>
-                        <line x1="12" y1="16" x2="12" y2="12"/>
-                        <line x1="12" y1="8" x2="12.01" y2="8"/>
-                    </svg>
-                </button>
             </div>
             <div id="keyboard-tooltip" class="hidden">
                 <div class="tooltip-content">
@@ -171,6 +189,10 @@
                     <div class="shortcut-item">
                         <kbd>I</kbd> <kbd>?</kbd>
                         <span>Toggle this menu</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>C</kbd>
+                        <span>Collapse info bar</span>
                     </div>
                     <div class="shortcut-item">
                         <kbd>Esc</kbd>

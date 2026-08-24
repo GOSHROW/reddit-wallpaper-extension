@@ -4,8 +4,11 @@ A browser extension that replaces your new tab page with stunning images from Re
 
 Works on Chrome, Firefox, Edge, Brave, Opera, and other Chromium-based browsers.
 
-![Screenshot](resources/screenshot.png)
-*Screenshot shows an earlier version; the current release adds history, favorites and display-mode controls*
+![The info bar expanded, with the info and shortcuts panel open](resources/screenshot.jpg)
+*Everything on: the info bar with subreddit, title and controls, and the panel showing image metadata alongside every shortcut*
+
+![The same tab with the info bar collapsed to a single tab in the corner](resources/screenshot-collapsed.jpg)
+*Collapsed with `C`: the bar folds into its own tab in the corner and the wallpaper is left alone. Every shortcut still works*
 
 ## Features
 
@@ -17,13 +20,40 @@ Works on Chrome, Firefox, Edge, Brave, Opera, and other Chromium-based browsers.
 - **NSFW filtering** - safe by default with optional toggle, stored per device
 - **Keyboard shortcuts** - navigate efficiently without mouse
 - **Draggable clock** - reposition anywhere, 12/24-hour format toggle
+- **Collapsible info bar** - fold the whole bar into its own tab for an
+  unobstructed wallpaper, with every shortcut still live
 - **Background blur** - improve readability on busy images
 - **Image info** - see resolution, score, age, and author
 - **Gallery support** - extracts all images from multi-image posts
 - **CDN prioritization** - loads most reliable sources first
 - **Cross-browser** - works seamlessly on all major browsers
 
-## What's new in 1.5.0
+## What's new
+
+### 1.6.0
+
+- **Collapsible info bar.** The arrow at the left of the bar is now its own tab,
+  built into the bar's left cap with a hairline seam. Clicking it (or pressing `C`)
+  folds the whole bar away into that tab, leaving the wallpaper and the clock alone.
+  The tab occupies the same pixels in both states, so you can fold and unfold
+  without moving the mouse.
+- The arrow points left, the way the bar folds, and becomes a curled arrow when
+  collapsed. Neither shape is a bare chevron, so it never reads as previous/next.
+- Every keyboard shortcut keeps working while collapsed. `S` and `I`, whose targets
+  live inside the bar, expand it first. Errors still surface rather than being
+  swallowed by the folded bar.
+- The collapsed state persists across tabs and sessions.
+- **Fixed:** the info panel showed a permanent scrollbar. Its `overflow` was on the
+  panel itself, which both clipped the pointer arrow and left the panel 8px
+  scrollable at every window size. The inner content scrolls now, and only on
+  windows short enough to actually need it.
+- **Fixed:** on narrow viewports two style overrides were silently losing on source
+  order, so the stacked rows were centre-aligned instead of left-aligned. The
+  narrow-viewport block now sits last in the stylesheet, where it belongs.
+- Added browser-measured tests for geometry and animation, since the earlier
+  scripted-DOM tests could not see either.
+
+### 1.5.0
 
 A correctness and accessibility release. No new features; a lot of things that
 looked like they worked now actually do.
@@ -121,6 +151,7 @@ source folder weighs.
 | `V` | Toggle favorites view / Back to Reddit |
 | `S` or `/` | Focus subreddit input |
 | `I` or `?` | Toggle info & shortcuts menu |
+| `C` | Collapse / expand the info bar |
 | `B` | Toggle background blur |
 | `F` | Toggle display mode (fill/fit) |
 | `Shift+N` | Toggle NSFW filter |
@@ -180,6 +211,27 @@ involving <kbd>Ctrl</kbd>, <kbd>Cmd</kbd> or <kbd>Alt</kbd> is left to the brows
 - Click display mode button or press `F` to switch
 - Fill works best for landscapes, Fit preserves portraits and unusual aspect ratios
 - Setting persists across sessions
+
+### Collapsing the Info Bar
+
+The arrow at the left end of the bar sits in its own tab, built into the bar's left
+cap: same glass surface, a hairline seam where it meets the content, rounded only on
+the outer edge. Click it or press `C` and the bar folds away into that tab, leaving
+nothing but the wallpaper and the clock.
+
+The arrow points left, the direction the bar actually folds; collapsed, it becomes a
+curled arrow meaning "unfurl this again". Neither shape is a bare chevron, so it
+never reads as the previous/next buttons beside it. The tab occupies the exact same
+pixels in both states, so you can fold and unfold without moving the mouse.
+
+Nothing stops working while it is collapsed. `N`/`P` still navigate, `R` still loads
+a new image, `H` still saves a favorite, and `B`/`F`/`Shift+N` still flip their
+settings; the icons just catch up when you expand again. The two shortcuts that
+need the bar on screen - `S` for the subreddit box and `I` for the info panel -
+expand it for you first. Errors still surface while collapsed rather than being
+swallowed.
+
+The state persists across tabs and sessions.
 
 ### Recommended Subreddits
 
@@ -319,6 +371,7 @@ find a barrier, please open an issue.
 - Background blur setting
 - Display mode (fill/fit)
 - Tooltip visibility
+- Info bar collapsed state
 
 **Local Storage** (this device only):
 - Subreddit preference
@@ -371,11 +424,21 @@ No dependencies and no build step for development - load the folder unpacked.
 npm test          # or: node --test tests/
 ```
 
-The suite runs on Node's built-in test runner with **zero npm dependencies**. It
-loads the real `newtab.html` and `newtab.js` into a small scripted DOM with stubbed
-`chrome.storage`, a scriptable `fetch`, and an `Image` implementation that only
-resolves when a test says so - so image loads, stalls and failures are all
+The suite runs on Node's built-in test runner with **zero npm dependencies**, in two
+tiers.
+
+Most tests load the real `newtab.html` and `newtab.js` into a small scripted DOM with
+stubbed `chrome.storage`, a scriptable `fetch`, and an `Image` implementation that
+only resolves when a test says so - so image loads, stalls and failures are all
 deterministic.
+
+`tests/visual.test.js` drives a real headless Chrome over the DevTools Protocol
+(using Node's built-in `WebSocket`, so still no packages) and measures actual
+geometry. That tier exists because the scripted DOM has no layout engine: it can
+prove a class was toggled, but not that a control stayed where it was or that a
+transition interpolates. Those tests skip themselves when no Chrome binary is
+present, so `npm test` still passes on a machine without one. Point `CHROME_PATH` at
+a binary if it is somewhere unusual.
 
 | File | Covers |
 |------|--------|
@@ -387,6 +450,9 @@ deterministic.
 | `tests/ui-load.test.js` | crossfade, watchdog, retries, commit-on-display, XSS |
 | `tests/keyboard.test.js` | every shortcut, modifier and auto-repeat guards |
 | `tests/prefs.test.js` | sync/local split, v1.4 migration, quota failures, clock |
+| `tests/subreddit.test.js` | input normalisation, destructive-clear guards, NSFW reload |
+| `tests/collapse.test.js` | collapse state, persistence, shortcuts while folded |
+| `tests/visual.test.js` | geometry and animation, measured in a real browser |
 | `tests/static-audit.test.js` | cross-file drift between JS, HTML, CSS, manifests, README |
 
 `static-audit.test.js` earns its keep. Most defects in this codebase have been
@@ -433,7 +499,7 @@ they break CI instead of someone's new tab.
 - `newtab.js` - Main application logic
 - `resources/styles.css` - Styling and animations
 - `resources/icon*.png` - Extension icons
-- `resources/screenshot*.png` - README assets (excluded from the packaged extension)
+- `resources/screenshot*.jpg` - README assets (excluded from the packaged extension)
 - `build.sh` - Produces the Chrome and Firefox zips
 - `tests/` - Test suite (no dependencies)
 - `LICENSE` - MIT

@@ -101,7 +101,8 @@ const Prefs = {
     is24HourFormat: 'sync',
     tooltipVisible: 'sync',
     backgroundBlur: 'sync',
-    isFullscreen: 'sync'
+    isFullscreen: 'sync',
+    infoCollapsed: 'sync'
   },
 
   DEFAULTS: {
@@ -111,7 +112,8 @@ const Prefs = {
     is24HourFormat: true,
     tooltipVisible: false,
     backgroundBlur: false,
-    isFullscreen: true
+    isFullscreen: true,
+    infoCollapsed: false
   },
 
   values: {},
@@ -822,7 +824,9 @@ const UI = {
       date: document.getElementById('date'),
       loading: document.getElementById('loading'),
       subredditInput: document.getElementById('subreddit-input'),
-      timeContainer: document.getElementById('time-container')
+      timeContainer: document.getElementById('time-container'),
+      imageInfo: document.getElementById('image-info'),
+      collapseToggle: document.getElementById('collapse-toggle')
     };
 
     this.is24HourFormat = Prefs.get('is24HourFormat');
@@ -830,6 +834,7 @@ const UI = {
     this.loadClockPosition();
     this.initTimeFormatToggle();
     this.initKeyboardTooltip();
+    this.initCollapseToggle();
     this.initToggles();
     this.initHeartButton();
     this.initErrorNotification();
@@ -1002,6 +1007,44 @@ const UI = {
       setTooltip(next);
       await Prefs.set('tooltipVisible', next);
     });
+  },
+
+  // Folds the info bar down to its own left-hand tab. Deliberately does not touch
+  // the clock, the wallpaper or the keyboard handler -- every shortcut stays live
+  // while collapsed, and anything that needs the bar on screen expands it first.
+  initCollapseToggle() {
+    const button = this.elements.collapseToggle;
+    const collapseIcon = button.querySelector('.collapse-icon');
+    const expandIcon = button.querySelector('.expand-icon');
+
+    const render = (collapsed) => {
+      this.elements.imageInfo.classList.toggle('collapsed', collapsed);
+      collapseIcon.classList.toggle('hidden', collapsed);
+      expandIcon.classList.toggle('hidden', !collapsed);
+      button.setAttribute('title', collapsed ? 'Expand info bar (C)' : 'Collapse info bar (C)');
+      button.setAttribute('aria-label', collapsed ? 'Expand info bar' : 'Collapse info bar');
+      button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    };
+
+    render(Prefs.get('infoCollapsed'));
+
+    this.setCollapsed = async (collapsed) => {
+      if (Prefs.get('infoCollapsed') === collapsed) return;
+      render(collapsed);
+      await Prefs.set('infoCollapsed', collapsed);
+      Logger.info('UI', `Info bar: ${collapsed ? 'collapsed' : 'expanded'}`);
+    };
+
+    button.addEventListener('click', () => this.setCollapsed(!Prefs.get('infoCollapsed')));
+  },
+
+  isCollapsed() {
+    return Prefs.get('infoCollapsed');
+  },
+
+  // For shortcuts whose target is inside the collapsed bar.
+  async ensureExpanded() {
+    if (this.isCollapsed()) await this.setCollapsed(false);
   },
 
   // One implementation for the three icon-button/checkbox pairs. Previously each
@@ -1900,9 +1943,16 @@ const App = {
       case '/':
         if (this.viewMode === 'reddit') {
           e.preventDefault();
+          // The input is inside the bar, so it has to be on screen to take focus.
+          await UI.ensureExpanded();
           UI.elements.subredditInput.focus();
           UI.elements.subredditInput.select();
         }
+        break;
+
+      case 'c':
+        e.preventDefault();
+        UI.elements.collapseToggle.click();
         break;
 
       case 'b':
@@ -1918,6 +1968,8 @@ const App = {
       case 'i':
       case '?':
         e.preventDefault();
+        // The panel is a child of the bar and cannot be seen while it is collapsed.
+        await UI.ensureExpanded();
         UI.elements.keyboardHelp.click();
         break;
 
