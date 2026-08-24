@@ -1,0 +1,12 @@
+{
+  "name": "reddit-wallpaper-extension",
+  "version": "1.5.0",
+  "private": true,
+  "description": "Browser extension that replaces the new tab page with images from Reddit",
+  "license": "MIT",
+  "author": "GOSHROW",
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.js\"",
+    "build": "./build.sh"
+  }
+}

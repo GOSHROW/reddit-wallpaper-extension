@@ -21,9 +21,7 @@ body {
 .background-layer {
   position: absolute;
   inset: 0;
-  background-color: #1a1a1a;
   transition: opacity 0.6s ease-in-out;
-  will-change: opacity;
 }
 
 .background-layer .bg-blur {
@@ -59,6 +57,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
+  z-index: 3;
   background: linear-gradient(to bottom, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.5));
   pointer-events: none;
 }
@@ -199,14 +198,9 @@ body {
   transition: color 0.3s ease;
 }
 
-#post-title.error {
-  color: #ff6b6b;
-  font-weight: 500;
-  opacity: 1;
-}
-
 #error-notification {
   position: absolute;
+  z-index: 1100;
   bottom: calc(100% + 8px);
   left: 0;
   right: 0;
@@ -324,20 +318,6 @@ body {
 #refresh-button:hover {
   background: rgba(255, 255, 255, 0.15);
   transform: scale(1.05);
-}
-
-#refresh-button:focus {
-  outline: 2px solid rgba(255, 255, 255, 0.6);
-  outline-offset: 2px;
-}
-
-#refresh-button:focus:not(:focus-visible) {
-  outline: none;
-}
-
-#refresh-button:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.8);
-  outline-offset: 2px;
 }
 
 #refresh-button:active {
@@ -676,6 +656,9 @@ body {
   border-radius: 12px;
   padding: 16px;
   min-width: 220px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   z-index: 1000;
   opacity: 1;
@@ -687,6 +670,7 @@ body {
   opacity: 0;
   transform: translateY(10px);
   pointer-events: none;
+  visibility: hidden;
 }
 
 #keyboard-tooltip::after {
@@ -749,11 +733,6 @@ body {
   text-transform: lowercase;
   font-weight: 400;
   margin-left: 2px;
-}
-
-.info-icon {
-  font-size: 1rem;
-  flex-shrink: 0;
 }
 
 .info-value {
@@ -912,9 +891,8 @@ body {
   }
 
   .button-group {
-    position: absolute;
-    top: 15px;
-    right: 15px;
+    margin-left: 0;
+    align-self: flex-end;
   }
 
   #post-title {
@@ -929,12 +907,61 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Keep the loading spinners legible as a static ring rather than a frozen arc. */
+  .spinner, .loader {
+    border-top-color: rgba(255, 255, 255, 0.9);
   }
 }
 
 @media (prefers-contrast: high) {
   #subreddit-input {
     border-width: 2px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Focus visibility
+
+   Only #refresh-button used to carry a focus style, which left the other eight
+   icon buttons and the settings checkboxes with no visible focus at all -- the
+   page claims full keyboard navigation, so every interactive control needs one.
+   :focus-visible keeps the ring off mouse clicks.
+   --------------------------------------------------------------------------- */
+#overlay button:focus-visible,
+#subreddit-input:focus-visible,
+#keyboard-tooltip input[type="checkbox"]:focus-visible,
+#time-container:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Fallback for engines without :focus-visible support. */
+@supports not selector(:focus-visible) {
+  #overlay button:focus,
+  #subreddit-input:focus,
+  #keyboard-tooltip input[type="checkbox"]:focus {
+    outline: 2px solid rgba(255, 255, 255, 0.85);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-contrast: high) {
+  #overlay button:focus-visible,
+  #subreddit-input:focus-visible {
+    outline-width: 3px;
+  }
+
+  #image-info {
+    background: rgba(0, 0, 0, 0.85);
+  }
+
+  #post-title, .info-value {
+    opacity: 1;
   }
 }

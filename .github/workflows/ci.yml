@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [development]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # No dependencies to install: the suite uses only node:test.
+      - name: Run tests
+        run: npm test
+
+      - name: Verify both store packages build
+        run: |
+          ./build.sh
+          test -f dist/reddit-wallpaper-chrome-*.zip
+          test -f dist/reddit-wallpaper-firefox-*.zip
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-packages
+          path: dist/*.zip
